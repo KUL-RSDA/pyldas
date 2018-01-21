@@ -1,6 +1,13 @@
 
 import os
 
+def walk_up_folder(path, depth=1):
+    _cur_depth = 0
+    while _cur_depth < depth:
+        path = os.path.dirname(path)
+        _cur_depth += 1
+    return path
+
 def remove_fields(nparray, names):
     fields = list(nparray.dtype.names)
     for name in names:

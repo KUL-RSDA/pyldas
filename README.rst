@@ -3,7 +3,7 @@ PyLDAS
 ======
 
 
-Add a short description here!
+Python package for the reading and visualization of LDAS.
 
 
 Description

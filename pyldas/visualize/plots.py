@@ -57,23 +57,37 @@ def plot_ease_img(data,tag,
 
     plt.show()
 
-def plot_ObsFcstAna_image():
-    io = LDAS_io('ldas_ObsFcstAna')
+def plot_ObsFcstAna_image(species=8):
 
-    res = io.read_ObsFcstAna_img(2011, 6, 12, 0, 0, species=28)
+    io = LDAS_io('ObsFcstAna')
+    img = io.read_image(2011, 7, 10, 0, 0)
+
+    img = img[img['obs_species']==species]
 
     tag = 'innov'
-    res[tag] = res['obs']-res['fcst']
-    plot_ease_img(res, tag)
+    img[tag] = img['obs_obs']-img['obs_fcst']
+    img.index = img['obs_tilenum'].values
+    plot_ease_img(img, tag)
+
+def plot_model_image():
+
+    io = LDAS_io('xhourly')
+    img = io.read_image(2011, 4, 20, 10, 30)
+
+    tag = 'precipitation_total_surface_flux'
+    tag = 'snow_mass'
+    cbrange = (0,0.0001)
+    cbrange = (0,0.6)
+    cbrange = (0,100)
+
+    plot_ease_img(img, tag, cbrange=cbrange)
 
 
 
-# if __name__=='__main__':
-#
-#     plot_ObsFcstAna_image()
-#
+if __name__=='__main__':
+    plot_model_image()
 
-# global
+
 # llcrnrlat = -58.,
 # urcrnrlat = 78.,
 # llcrnrlon = -172.,

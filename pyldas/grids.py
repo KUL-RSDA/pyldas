@@ -5,7 +5,7 @@ from ease_grid.ease2_grid import EASE2_grid
 
 from pyldas.functions import find_files
 from pyldas.constants import paths
-from pyldas.readers import read_tilecoord, read_tilegrids
+from pyldas.readers import LDAS_io
 
 class EASE2(EASE2_grid):
 
@@ -27,8 +27,9 @@ class EASE2(EASE2_grid):
         tilecoord = find_files(tileinfo_path,'tilecoord')
         tilegrids = find_files(tileinfo_path,'tilegrids')
 
-        self.tilecoord = read_tilecoord(tilecoord)
-        self.tilegrids = read_tilegrids(tilegrids)
+        io = LDAS_io(tilecoord_path=tilecoord, tilegrids_path=tilegrids)
+        self.tilecoord = io.tilecoord
+        self.tilegrids = io.tilegrids
 
         super(EASE2, self).__init__(res, map_scale=map_scale)
 
