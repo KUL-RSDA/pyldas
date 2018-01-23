@@ -6,6 +6,8 @@ import pandas as pd
 import xarray as xr
 
 from struct import unpack
+from netCDF4 import Dataset, date2num
+from collections import OrderedDict
 
 from pyldas.templates import get_template
 from pyldas.functions import find_files, walk_up_folder
@@ -32,10 +34,21 @@ class LDAS_io(object):
         self.param = param
         if param is not None:
             self.files = find_files(paths().exp_root, param)
-            self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
             if self.files is None:
                 print 'No files for parameter: "' + param + '".'
                 return
+
+            if self.files[0].find('images.nc') == -1:
+                print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
+                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+            else:
+                self.images = xr.open_dataset(self.files[0])
+                if self.files[1].find('timeseries.nc') == -1:
+                    print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
+                else:
+                    self.timeseries = xr.open_dataset(self.files[1])
+
+
 
     @staticmethod
     def read_obsparam(fname):
@@ -148,92 +161,120 @@ class LDAS_io(object):
         return self.read_fortran_binary(fname, dtype, hdr=hdr)
 
 
-    def read_image(self, yr, mo, da, hr, mi):
+    def read_image(self, yr, mo, da, hr, mi, species=None):
 
-        datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
-        fname = [f for f in self.files if f.find(datestr) != -1]
+        if hasattr(self, 'images'):
+            datestr = '%04i-%02i-%02i %02i:%02i' % (yr, mo, da, hr, mi)
+            if species is not None:
+                img = self.images.sel(species=species, time=datestr).values
+            else:
+                img = self.images.sel(time=datestr).values
+            return img
 
-        if len(fname) == 0:
-            print 'No files found for: "' + datestr + '".'
-            return None
-        elif len(fname) > 1:
-            print 'Multiple files found for: "' + datestr + '".'
         else:
-            fname = fname[0]
+            datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
+            fname = [f for f in self.files if f.find(datestr) != -1]
 
-        dtype, hdr, length = get_template(self.param)
+            if len(fname) == 0:
+                print 'No files found for: "' + datestr + '".'
+                return None
+            elif len(fname) > 1:
+                print 'Multiple files found for: "' + datestr + '".'
+            else:
+                fname = fname[0]
 
-        return self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
+            dtype, hdr, length = get_template(self.param)
 
+            return self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
+
+    @staticmethod
+    def ncfile_init(fname, dimensions, variables):
+
+        ds = Dataset(fname, mode='w')
+        timeunit = 'hours since 2000-01-01 00:00'
+
+        # initialize dimensions
+        chunksizes = []
+        for key, values in dimensions.iteritems():
+            if key == 'time':
+                values = date2num(values.to_pydatetime(), timeunit).astype('int32')
+            if key in ['lon','lat']:
+                chunksize = len(values)
+            else:
+                chunksize = 10
+            chunksizes.append(chunksize)
+            dtype = values.dtype
+            ds.createDimension(key, len(values))
+            ds.createVariable(key,dtype,
+                              dimensions=(key,),
+                              chunksizes=(chunksize,),
+                              zlib=True)
+            ds.variables[key][:] = values
+        ds.variables['time'].setncattr('units',timeunit)
+
+        # initialize variables
+        for var in variables:
+            ds.createVariable(var, 'float32',
+                              dimensions=dimensions.keys(),
+                              chunksizes=chunksizes,
+                              fill_value=-9999.,
+                              zlib=True)
+
+        return ds
 
     def bin2netcdf(self):
 
+        out_path = walk_up_folder(self.files[0],3)
+        out_file = os.path.join(out_path,'.'.join(os.path.basename(self.files[0]).split('.')[:-2]) + '_images.nc')
+
         variables = get_template(self.param)[0].names
 
-        out_path = walk_up_folder(self.files[0],3)
-        out_file = os.path.join(out_path,'.'.join(os.path.basename(self.files[0]).split('.')[:-2]) + '.nc')
-
-        spc = pd.DataFrame(self.obsparam)['species'].values
         lons = np.sort(self.tilecoord.groupby('i_indg').first()['com_lon'])
-        lats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])
+        lats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
         dates = self.dates
 
-        coords = {'species':spc, 'lat': lats, 'lon': lons, 'date': dates}
+        if self.param == 'ObsFcstAna':
+            spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
+            dimensions = OrderedDict([('species',spc), ('lat',lats), ('lon',lons), ('time',dates)])
+        else:
+            dimensions = OrderedDict([('lat',lats), ('lon',lons), ('time',dates)])
 
-        img = np.empty([len(spc),len(lats),len(lons),len(dates)], dtype='float') * np.nan
-        da = xr.DataArray(img, dims=['species', 'lat', 'lon', 'date'], coords=coords)
-        dataset = xr.Dataset(dict(zip(variables,[da for i in np.arange(len(variables))])), coords=coords)
+        dataset = self.ncfile_init(out_file, dimensions, variables)
 
-        for j,dt in enumerate(dates):
-            print '%d / %d' % (j, len(dates))
+        for i,dt in enumerate(dates):
+            print '%d / %d' % (i, len(dates))
 
             data = self.read_image(dt.year,dt.month,dt.day,dt.hour,dt.minute)
             if len(data) == 0:
                 continue
 
-            img = np.empty((len(spc),len(lats),len(lons)), dtype='float')
-            img.fill(None)
+            if self.param == 'ObsFcstAna':
+                img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
+                ind_lat = self.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.tilegrids.loc['domain','j_offg']
+                ind_lon = self.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
+                ind_spc = data['obs_species'].values - 1
 
-            ind_spc = data['obs_species'].values-1
-            ind_lat = self.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.tilegrids.loc['domain','j_offg']
-            ind_lon = self.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
+            else:
+                img = np.full((len(lats),len(lons)), -9999., dtype='float32')
+                ind_lat = self.tilecoord.loc[:, 'j_indg'].values - self.tilegrids.loc['domain','j_offg']
+                ind_lon = self.tilecoord.loc[:, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
 
             for var in variables:
+                tmp_img = data[var].values.copy()
+                np.place(tmp_img, np.isnan(tmp_img), -9999.)
 
-                img[ind_spc,ind_lat,ind_lon] = data[var].values
+                if self.param == 'ObsFcstAna':
+                    img[ind_spc,ind_lat,ind_lon] = tmp_img
+                    dataset.variables[var][:,:,:,i] = img
+                else:
+                    img[ind_lat,ind_lon] = tmp_img
+                    dataset.variables[var][:,:,i] = img
 
-                coords = {'species':spc, 'lat': lats, 'lon': lons}
+        dataset.close()
 
-                arr = xr.DataArray(img,dims=['species','lat','lon',],coords=coords)
-
-                dataset[var].loc[:,:,:,dt] = arr
-
-
-        enc = {'dtype': 'int16', 'scale_factor': 0.01, '_FillValue': -9999}
-        encoding = dict(zip(variables,[enc for i in np.arange(len(variables))]))
-        chunk_sizes = {'species': len(spc), 'lat': len(lats), 'lon': len(lons), 'date': 1}
-
-        dataset.chunk(chunk_sizes).to_netcdf(out_file, mode='w', format='netcdf4', encoding=encoding)
 
 if __name__ == '__main__':
 
-    obj = LDAS_io('ObsFcstAna')
+    obj = LDAS_io('xhourly')
     obj.bin2netcdf()
-
-
-    # def read_ObsFcstAna_ts(self, tilenum, species):
-    #
-    #     names = ['assim','obs','obsvar','fcst','fcstvar','ana','anavar']
-    #     dts = self.get_dates()
-    #
-    #     data = pd.DataFrame(columns=names, index=dts)
-    #     for dt in dts:
-    #         img = self.read_ObsFcstAna_img(dt.year,dt.month,dt.day,dt.hour,dt.minute)
-    #         tmp = img.loc[(img.tilenum == tilenum) & (img.species == species), names].values
-    #         if len(tmp != 0):
-    #             data.loc[dts==dt,:] = tmp
-    #
-    #     return data
-
-
 

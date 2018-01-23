@@ -27,4 +27,3 @@ class paths(object):
         self.rs = os.path.join(self.exp_root,'rs')
 
         self.plots = os.path.join(self.exp_root,'plots')
-

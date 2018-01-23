@@ -1,5 +1,6 @@
 
 import os
+import numpy as np
 
 def walk_up_folder(path, depth=1):
     _cur_depth = 0
@@ -28,4 +29,4 @@ def find_files(path,name):
     elif len(res) == 1:
         return res[0]
     else:
-        return res
+        return np.array(res)

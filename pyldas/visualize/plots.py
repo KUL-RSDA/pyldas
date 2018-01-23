@@ -85,7 +85,7 @@ def plot_model_image():
 
 
 if __name__=='__main__':
-    plot_model_image()
+    plot_ObsFcstAna_image()
 
 
 # llcrnrlat = -58.,
