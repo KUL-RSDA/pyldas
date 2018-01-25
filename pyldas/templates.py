@@ -3,6 +3,25 @@ import numpy as np
 
 
 def get_template(param):
+    """
+    Return templates for reading fortran binary files
+
+    Parameters
+    ----------
+    param : string
+        Name of the parameter for which to return the reading template
+
+    Returns
+    -------
+    dtype : np.dtype
+        Field names and formats of the entries in the binary files
+    hdr : int
+        Number of (4-byte) header entries to SKIP before the data block
+    length : int
+        Number of data entries to be read
+        If None, this will be inferred from the second header byte
+
+    """
 
     if param == 'tilegrids':
         dtype, hdr, length = template_tilegrids()
@@ -23,6 +42,7 @@ def get_template(param):
     return dtype, hdr, length
 
 def template_tilegrids():
+    """" Template for reading the 'tilegrids' binary file """
 
     hdr = None
     length = 2
@@ -44,6 +64,7 @@ def template_tilegrids():
     return dtype, hdr, length
 
 def template_tilecoord():
+    """" Template for reading the 'tilecoord' binary file """
 
     hdr = 3
     length = None
@@ -66,6 +87,7 @@ def template_tilecoord():
     return dtype, hdr, length
 
 def template_ObsFcstAna():
+    """" Template for reading innovation files """
 
     hdr = 11
     length = None
@@ -84,6 +106,12 @@ def template_ObsFcstAna():
     return dtype, hdr, length
 
 def template_xhourly():
+    """"
+    Template for reading xhourly catchment output files
+    TODO Include the possibility to specify the Collection ID. Currently: 8 / tavg
+
+    """
+
 
     hdr = None
     length = None

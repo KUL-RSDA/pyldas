@@ -1,4 +1,5 @@
 
+import pandas as pd
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -83,9 +84,23 @@ def plot_model_image():
     plot_ease_img(img, tag, cbrange=cbrange)
 
 
+def plot_innov(spc=8, row=35, col=65):
+
+    ts = LDAS_io('ObsFcstAna').timeseries
+
+    df = pd.DataFrame(index=ts.time)
+
+    df['obs'] = ts['obs_obs'][spc,row,col].values
+    df['fcst'] = ts['obs_fcst'][spc,row,col].values
+
+    df.dropna().plot()
+    plt.show()
+
+    ts.close()
+
 
 if __name__=='__main__':
-    plot_ObsFcstAna_image()
+    plot_innov()
 
 
 # llcrnrlat = -58.,

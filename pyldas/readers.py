@@ -14,12 +14,50 @@ from pyldas.functions import find_files, walk_up_folder
 from pyldas.constants import paths
 
 def s(line):
+    """" Remove quotes from string """
     return line[1:-2]
 
 def b(line):
+    """" Turn 'T' and 'F' into True and False, respectively"""
     return True if line[-2] == 'T' else False
 
 class LDAS_io(object):
+    """
+    Class for reading and writing LDAS specific data
+    Default paths are taken from pygldas.constants
+
+    Parameters
+    ----------
+    param : str
+        Name of the parameter for which data should be read
+    obsparam_path : str
+        Path to the 'obsparam' file
+    tilecoord_path : str
+        Path to the 'tilecoord' file
+    tilecoord_path : str
+        Path to the 'tilegrids' file
+
+    Attributes
+    ----------
+    obsparam : pd.DataFrame
+        Metadata about observations
+    tilecoord : pd.DataFrame
+        Metadata information for the tile coordinates of a particular LDAS experiment
+    tilegrids : pd.DataFrame
+        Metadata information for the tile grids of a particular LDAS experiment
+    param : str
+        Name of the parameter for which data is loaded
+    files : np.array
+        Array containing all names within the specified experiment directory, that match
+        the specified parameter
+    dates : pd.DatetimeIndex
+        Dates corresponding to the files in self.files
+    images : xr.Dataset
+        netCDF image-chunked image stack (if available)
+    timeseries : xr.Dataset
+        netCDF timeseries-chunked image stack (if available)
+
+    """
 
     def __init__(self,
                  param=None,
@@ -51,7 +89,21 @@ class LDAS_io(object):
 
 
     @staticmethod
-    def read_obsparam(fname):
+    def read_obsparam(fname=None):
+        """
+        Class for reading the 'obsparam' text file holding metadata on the observations.
+
+        Parameters
+        ----------
+        fname : str
+            name of the 'obsparam' file
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Metadata about observations
+
+        """
 
         if fname is None:
             fname = find_files(paths().rc_out, 'obsparam')
@@ -99,6 +151,31 @@ class LDAS_io(object):
         return pd.DataFrame(res)
 
     def read_fortran_binary(self, fname, dtype, hdr=None, length=None, reg_ftags=True, idx=None):
+        """
+        Class for reading fortran binary files
+
+        Parameters
+        ----------
+        fname : str
+            Name of the file to be read
+        dtype : np.dtype
+            Template holding parameter names and data types of the file entries
+        hdr : int
+            Number of (4-byte) header entries to be skipped
+        length : str
+            Number of successive data blocks contained in the file
+        reg_ftags : Boolean
+            If True, a fortran tag (byte) is expected before and after each data field, otherwise
+            only before and after each data block (only the case for tilegrids files)
+        idx : str
+            If specified, the data of the field named 'idx' will be used as index of the output data frame
+
+        Returns
+        -------
+        data : pd.DataFrame
+            Content of the fortran binary file
+
+        """
 
         if not os.path.isfile(fname):
             print 'file "', fname, '" not found.'
@@ -109,10 +186,11 @@ class LDAS_io(object):
         if hdr is not None:
             hdr = fid.read(4 * hdr)
             if length is None:
-                # read header, assumed to be int32 after the fortran tag
+                # read header, assumed to be int32 after the first fortran tag
                 length = unpack('i', hdr[4:8][::-1])[0]
         else:
             if length is None:
+                # If no length / header is specified, a data entry for each tile in the domain is assumed
                 length = len(self.tilecoord)
 
         data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
@@ -139,6 +217,8 @@ class LDAS_io(object):
         return data
 
     def read_tilegrids(self, fname=None):
+        """ Read the 'tilegrids' file. """
+
         if fname is None:
             fname = find_files(paths().rc_out, 'tilegrids')
 
@@ -146,12 +226,14 @@ class LDAS_io(object):
 
         data = self.read_fortran_binary(fname, dtype, length=length, reg_ftags=False)
 
+        # remove leading/trailing blanks from the txt file
         data['gridtype'] = np.char.strip(data['gridtype'].values.astype('str'))
         data.index = ['global', 'domain']
 
         return data
 
     def read_tilecoord(self, fname=None):
+        """ Read the 'tilecoords' file. """
 
         if fname is None:
             fname = find_files(paths().rc_out, 'tilecoord')
@@ -162,15 +244,29 @@ class LDAS_io(object):
 
 
     def read_image(self, yr, mo, da, hr, mi, species=None):
+        """"
+        Read an image for a given date/time(/species)
+        If a netCDF file has been created with self.bin2netcdf, the image will be read from this file,
+        otherwise it is read from the fortran binary file
 
+        Returns
+        -------
+        img : np.ndarray (if netCDF has been created)
+            Complete 2D or 3D image (with/without species, depending on the specified parameter)
+              pd.DataFrame (if read from fortran binary)
+            Only tiles for which data is available
+
+        """
+
+        # If netCDF file has been created/loaded, use xarray indexing functions
         if hasattr(self, 'images'):
             datestr = '%04i-%02i-%02i %02i:%02i' % (yr, mo, da, hr, mi)
             if species is not None:
                 img = self.images.sel(species=species, time=datestr).values
             else:
                 img = self.images.sel(time=datestr).values
-            return img
 
+        # Otherwise, read from fortran binary
         else:
             datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
             fname = [f for f in self.files if f.find(datestr) != -1]
@@ -184,25 +280,49 @@ class LDAS_io(object):
                 fname = fname[0]
 
             dtype, hdr, length = get_template(self.param)
+            img = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
 
-            return self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
+        return img
 
     @staticmethod
     def ncfile_init(fname, dimensions, variables):
+        """"
+        Method to initialize dimensions/variables of a image-chunked netCDF file
+
+        Parameters
+        ----------
+        fname : str
+            Filename of the netCDF file to be created
+        dimensions : dict
+            Dictionary containing the dimension names and values
+        variables : list
+            list of variables to be created with the specified dimensions
+
+        Returns
+        -------
+        ds : fileid
+            File ID of the created netCDF file
+
+        """
 
         ds = Dataset(fname, mode='w')
         timeunit = 'hours since 2000-01-01 00:00'
 
-        # initialize dimensions
+        # Initialize dimensions
         chunksizes = []
         for key, values in dimensions.iteritems():
+
+            # convert pandas Datetime Index to netCDF-understandable numeric format
             if key == 'time':
                 values = date2num(values.to_pydatetime(), timeunit).astype('int32')
+
+            # Files are per default image chunked
             if key in ['lon','lat']:
                 chunksize = len(values)
             else:
                 chunksize = 10
             chunksizes.append(chunksize)
+
             dtype = values.dtype
             ds.createDimension(key, len(values))
             ds.createVariable(key,dtype,
@@ -212,7 +332,7 @@ class LDAS_io(object):
             ds.variables[key][:] = values
         ds.variables['time'].setncattr('units',timeunit)
 
-        # initialize variables
+        # Initialize variables
         for var in variables:
             ds.createVariable(var, 'float32',
                               dimensions=dimensions.keys(),
@@ -223,16 +343,19 @@ class LDAS_io(object):
         return ds
 
     def bin2netcdf(self):
+        """" Convert fortran binary image into a netCDF data cube """
 
         out_path = walk_up_folder(self.files[0],3)
         out_file = os.path.join(out_path,'.'.join(os.path.basename(self.files[0]).split('.')[:-2]) + '_images.nc')
 
+        # get variable names from fortran reader template
         variables = get_template(self.param)[0].names
 
         lons = np.sort(self.tilecoord.groupby('i_indg').first()['com_lon'])
         lats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
         dates = self.dates
 
+        # Innovation file data has an additional 'species' dimension
         if self.param == 'ObsFcstAna':
             spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
             dimensions = OrderedDict([('species',spc), ('lat',lats), ('lon',lons), ('time',dates)])
@@ -260,6 +383,7 @@ class LDAS_io(object):
                 ind_lon = self.tilecoord.loc[:, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
 
             for var in variables:
+                # replace NaN values with the default -9999. fill Value
                 tmp_img = data[var].values.copy()
                 np.place(tmp_img, np.isnan(tmp_img), -9999.)
 
@@ -270,11 +394,9 @@ class LDAS_io(object):
                     img[ind_lat,ind_lon] = tmp_img
                     dataset.variables[var][:,:,i] = img
 
+        # Save file to disk and loat it as xarray Dataset into the class variable space
         dataset.close()
+        self.images = xr.open_dataset(out_file)
 
 
-if __name__ == '__main__':
-
-    obj = LDAS_io('xhourly')
-    obj.bin2netcdf()
 
