@@ -35,7 +35,7 @@ class EASE2(EASE2_grid):
 
     """
 
-    def __init__(self, res=36, map_scale=None, tileinfo_path=None):
+    def __init__(self, res=36, map_scale=None, exp=None, domain=None):
 
         res *= 1000
 
@@ -53,13 +53,7 @@ class EASE2(EASE2_grid):
         else:
             map_scale *= 1000
 
-        if tileinfo_path is None:
-            tileinfo_path = paths().rc_out
-
-        tilecoord = find_files(tileinfo_path,'tilecoord')
-        tilegrids = find_files(tileinfo_path,'tilegrids')
-
-        io = LDAS_io(tilecoord_path=tilecoord, tilegrids_path=tilegrids)
+        io = LDAS_io(exp=exp, domain=domain)
         self.tilecoord = io.tilecoord
         self.tilegrids = io.tilegrids
 

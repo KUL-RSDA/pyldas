@@ -30,6 +30,7 @@ def find_files(path,searchstr):
                 res.append(os.path.join(root, f))
 
     if len(res) == 0:
+        print 'No files found which contain: "' + param + '".'
         return None
     elif len(res) == 1:
         return res[0]

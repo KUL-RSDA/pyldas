@@ -29,15 +29,15 @@ class LDAS_io(object):
     ----------
     param : str
         Name of the parameter for which data should be read
-    obsparam_path : str
-        Path to the 'obsparam' file
-    tilecoord_path : str
-        Path to the 'tilecoord' file
-    tilecoord_path : str
-        Path to the 'tilegrids' file
+    exp : string
+        experiment name (appended to root path)
+    domain : string
+        domain name (appended to experiment path)
 
     Attributes
     ----------
+    paths : dict
+        Dictionary holding the path information for the specified exp/domain
     obsparam : pd.DataFrame
         Metadata about observations
     tilecoord : pd.DataFrame
@@ -60,28 +60,24 @@ class LDAS_io(object):
 
     def __init__(self,
                  param=None,
-                 obsparam_path=None,
-                 tilecoord_path=None,
-                 tilegrids_path=None):
+                 exp=None,
+                 domain=None):
 
-        self.obsparam = self.read_obsparam(fname=obsparam_path)
-        self.tilecoord = self.read_tilecoord(fname=tilecoord_path)
-        self.tilegrids = self.read_tilegrids(fname=tilegrids_path)
+        self.paths = paths(exp=exp, domain=domain)
+
+        self.obsparam = self.read_obsparam()
+        self.tilecoord = self.read_tilecoord()
+        self.tilegrids = self.read_tilegrids()
 
         self.param = param
         if param is not None:
 
             if param == 'scale':
-                search_dir = 'scalefile_root'
+                self.files = find_files(self.paths.__getattribute__('scalefile_root'), param)
             else:
-                search_dir = 'exp_root'
+                self.files = find_files(self.paths.__getattribute__('exp_root'), param)
 
-            self.files = find_files(getattr(paths(),search_dir), param)
-            if self.files is None:
-                print 'No files for parameter: "' + param + '".'
-                return
-
-            if self.param != 'scale':
+                # TODO: NetCDF generation not yet implemented for scaling files!
                 if self.files[0].find('images.nc') == -1:
                     print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
                     self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
@@ -93,28 +89,10 @@ class LDAS_io(object):
                         self.timeseries = xr.open_dataset(self.files[1])
 
 
+    def read_obsparam(self):
+        """ Read the 'obsparam' file. """
 
-    @staticmethod
-    def read_obsparam(fname=None):
-        """
-        Class for reading the 'obsparam' text file holding metadata on the observations.
-
-        Parameters
-        ----------
-        fname : str
-            name of the 'obsparam' file
-
-        Returns
-        -------
-        res : pd.DataFrame
-            Metadata about observations
-
-        """
-
-        if fname is None:
-            fname = find_files(paths().rc_out, 'obsparam')
-
-        fp = open(fname)
+        fp = open(find_files(self.paths.rc_out, 'obsparam'))
 
         lines = fp.readlines()[1::]
 
@@ -173,7 +151,7 @@ class LDAS_io(object):
             Template holding parameter names and data types of the file entries
         hdr : int
             Number of (4-byte) header entries to be skipped
-        length : str
+        length : int
             If provided together with 'hdr':
                 Position of file length information within the header
             else:
@@ -202,26 +180,22 @@ class LDAS_io(object):
 
         fid = open(fname, 'rb')
 
+        # read header
         if hdr is not None:
             hdr = np.fromfile(fid, dtype='>i4', count=hdr).byteswap().newbyteorder()
 
             if length is not None:
-                # If hdr & length are specified, length refers to the n-th field in hdr,
-                # which contains the number of blocks to be read
                 length = hdr[length]
             else:
-                # If only hdr is specified, the second field refers to the field
-                # which contains the number of blocks to be read
                 length = hdr[1]
         else:
             if length is None:
-                # If neither length nor hdr are specified, a data block for each (domain) tile is assumed
                 length = len(self.tilecoord)
 
         data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
 
+        # read data
         if reg_ftags is True:
-
             for dt in dtype.names:
                 fid.seek(4, 1)  # skip fortran tag
                 data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
@@ -243,11 +217,10 @@ class LDAS_io(object):
         return data
 
 
-    def read_tilegrids(self, fname=None):
+    def read_tilegrids(self):
         """ Read the 'tilegrids' file. """
 
-        if fname is None:
-            fname = find_files(paths().rc_out, 'tilegrids')
+        fname = find_files(self.paths.rc_out, 'tilegrids')
 
         dtype, hdr, length = get_template('tilegrids')
 
@@ -260,19 +233,34 @@ class LDAS_io(object):
         return data
 
 
-    def read_tilecoord(self, fname=None):
+    def read_tilecoord(self):
         """ Read the 'tilecoords' file. """
 
-        if fname is None:
-            fname = find_files(paths().rc_out, 'tilecoord')
+        fname = find_files(self.paths.rc_out, 'tilecoord')
 
         dtype, hdr, length = get_template('tilecoord')
 
         return self.read_fortran_binary(fname, dtype, hdr=hdr)
 
 
-    def read_scaling_parameters(self, pentad=1, tile_id=None, angles=(40,)):
-        """ Read the scaling files. """
+    def read_scaling_parameters(self, pentad=1, tile_id=None):
+        """
+        Class for reading scaling files. These hold the observation and model mean and standard deviation, and
+        number of observations per per pentade.
+
+        Parameters
+        ----------
+        pentad : int
+            If no tile-id is provided, only one pentad will be read
+        tile_id : int
+            If provided, the scaling files for all pentads will be read for the specified tile_id
+
+        Returns
+        -------
+        data : pd.DataFrame
+            Mean, Std.dev, and N_data for model forecasts and observations.
+
+        """
 
         dtype, hdr, length = get_template('scaling')
 
@@ -281,13 +269,8 @@ class LDAS_io(object):
 
         else:
             pentads = np.arange(73)+1
-            fields = ['m_obs_H_%i' % ang for ang in angles] + \
-                     ['m_obs_V_%i' % ang for ang in angles] + \
-                     ['m_mod_H_%i' % ang for ang in angles] + \
-                     ['m_mod_V_%i' % ang for ang in angles]
-                     # ['N_data_H_%i' % ang for ang in angles] + \
-                     # ['N_data_V_%i' % ang for ang in angles]
 
+            fields = dtype.names[3:]
             data = pd.DataFrame(columns=fields, index=pentads)
 
             for pentad in pentads:
@@ -374,7 +357,7 @@ class LDAS_io(object):
             if key in ['lon','lat']:
                 chunksize = len(values)
             else:
-                chunksize = 10
+                chunksize = 1
             chunksizes.append(chunksize)
 
             dtype = values.dtype
@@ -453,7 +436,13 @@ class LDAS_io(object):
         self.images = xr.open_dataset(out_file)
 
 
-# if __name__=='__main__':
+if __name__=='__main__':
+
+    io = LDAS_io('ObsFcstAna')
+
+
+
+
 #     io = LDAS_io('scale')
 #
 #     tile_id = 107300
