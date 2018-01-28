@@ -19,6 +19,8 @@ class paths(object):
     ----------
     exp_root : string
         root path for the experiment (including experiment and domain names)
+    scalefile_root : string
+        root path to the scaling files (!!currently not correct for the HPC!!)
     ana : string
         Path to DA analysis output
     cat : string
@@ -52,6 +54,8 @@ class paths(object):
             domain = 'SMAP_EASEv2_M36_US'
 
         self.exp_root = os.path.join(self.root,exp,'output',domain)
+
+        self.scalefile_root = os.path.join(self.root,exp,'scaling_files')
 
         self.ana = os.path.join(self.exp_root,'ana')
         self.cat = os.path.join(self.exp_root,'cat')

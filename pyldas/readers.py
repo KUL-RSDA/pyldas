@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from struct import unpack
 from netCDF4 import Dataset, date2num
 from collections import OrderedDict
 
@@ -71,20 +70,27 @@ class LDAS_io(object):
 
         self.param = param
         if param is not None:
-            self.files = find_files(paths().exp_root, param)
+
+            if param == 'scale':
+                search_dir = 'scalefile_root'
+            else:
+                search_dir = 'exp_root'
+
+            self.files = find_files(getattr(paths(),search_dir), param)
             if self.files is None:
                 print 'No files for parameter: "' + param + '".'
                 return
 
-            if self.files[0].find('images.nc') == -1:
-                print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
-                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
-            else:
-                self.images = xr.open_dataset(self.files[0])
-                if self.files[1].find('timeseries.nc') == -1:
-                    print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
+            if self.param != 'scale':
+                if self.files[0].find('images.nc') == -1:
+                    print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
+                    self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
                 else:
-                    self.timeseries = xr.open_dataset(self.files[1])
+                    self.images = xr.open_dataset(self.files[0])
+                    if self.files[1].find('timeseries.nc') == -1:
+                        print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
+                    else:
+                        self.timeseries = xr.open_dataset(self.files[1])
 
 
 
@@ -150,7 +156,12 @@ class LDAS_io(object):
 
         return pd.DataFrame(res)
 
-    def read_fortran_binary(self, fname, dtype, hdr=None, length=None, reg_ftags=True, idx=None):
+
+    def read_fortran_binary(self, fname, dtype,
+                            hdr=None,
+                            length=None,
+                            reg_ftags=True,
+                            idx=None):
         """
         Class for reading fortran binary files
 
@@ -163,7 +174,10 @@ class LDAS_io(object):
         hdr : int
             Number of (4-byte) header entries to be skipped
         length : str
-            Number of successive data blocks contained in the file
+            If provided together with 'hdr':
+                Position of file length information within the header
+            else:
+                Number of successive data blocks contained in the file
         reg_ftags : Boolean
             If True, a fortran tag (byte) is expected before and after each data field, otherwise
             only before and after each data block (only the case for tilegrids files)
@@ -172,7 +186,12 @@ class LDAS_io(object):
 
         Returns
         -------
-        data : pd.DataFrame
+        fid : file-id (if return_hdr is True)
+            The file ID of the opened file
+        hdr : list (if return_hdr is True)
+            The file header as list of integers
+
+        data : pd.DataFrame (if return_hdr is False)
             Content of the fortran binary file
 
         """
@@ -184,28 +203,35 @@ class LDAS_io(object):
         fid = open(fname, 'rb')
 
         if hdr is not None:
-            hdr = fid.read(4 * hdr)
-            if length is None:
-                # read header, assumed to be int32 after the first fortran tag
-                length = unpack('i', hdr[4:8][::-1])[0]
+            hdr = np.fromfile(fid, dtype='>i4', count=hdr).byteswap().newbyteorder()
+
+            if length is not None:
+                # If hdr & length are specified, length refers to the n-th field in hdr,
+                # which contains the number of blocks to be read
+                length = hdr[length]
+            else:
+                # If only hdr is specified, the second field refers to the field
+                # which contains the number of blocks to be read
+                length = hdr[1]
         else:
             if length is None:
-                # If no length / header is specified, a data entry for each tile in the domain is assumed
+                # If neither length nor hdr are specified, a data block for each (domain) tile is assumed
                 length = len(self.tilecoord)
 
         data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
 
         if reg_ftags is True:
+
             for dt in dtype.names:
                 fid.seek(4, 1)  # skip fortran tag
-                data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length)
+                data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
                 fid.seek(4, 1)  # skip fortran tag
 
         else:
             for i in np.arange(length):
                 fid.seek(4, 1)  # skip fortran tag
                 for dt in dtype.names:
-                    data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
+                    data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0].byteswap().newbyteorder()
                 fid.seek(4, 1)  # skip fortran tag
 
         fid.close()
@@ -215,6 +241,7 @@ class LDAS_io(object):
             data.drop(idx, axis='columns', inplace=True)
 
         return data
+
 
     def read_tilegrids(self, fname=None):
         """ Read the 'tilegrids' file. """
@@ -232,6 +259,7 @@ class LDAS_io(object):
 
         return data
 
+
     def read_tilecoord(self, fname=None):
         """ Read the 'tilecoords' file. """
 
@@ -241,6 +269,32 @@ class LDAS_io(object):
         dtype, hdr, length = get_template('tilecoord')
 
         return self.read_fortran_binary(fname, dtype, hdr=hdr)
+
+
+    def read_scaling_parameters(self, pentad=1, tile_id=None, angles=(40,)):
+        """ Read the scaling files. """
+
+        dtype, hdr, length = get_template('scaling')
+
+        if tile_id is None:
+            data = self.read_fortran_binary(self.files[pentad], dtype, hdr=hdr, length=length, idx='tile_id')
+
+        else:
+            pentads = np.arange(73)+1
+            fields = ['m_obs_H_%i' % ang for ang in angles] + \
+                     ['m_obs_V_%i' % ang for ang in angles] + \
+                     ['m_mod_H_%i' % ang for ang in angles] + \
+                     ['m_mod_V_%i' % ang for ang in angles]
+                     # ['N_data_H_%i' % ang for ang in angles] + \
+                     # ['N_data_V_%i' % ang for ang in angles]
+
+            data = pd.DataFrame(columns=fields, index=pentads)
+
+            for pentad in pentads:
+                tmp_data = self.read_fortran_binary(self.files[pentad], dtype, hdr=hdr, length=length, idx='tile_id')
+                data.loc[pentad,fields] = tmp_data.loc[tile_id, fields].values
+
+        return data
 
 
     def read_image(self, yr, mo, da, hr, mi, species=None):
@@ -399,4 +453,12 @@ class LDAS_io(object):
         self.images = xr.open_dataset(out_file)
 
 
-
+# if __name__=='__main__':
+#     io = LDAS_io('scale')
+#
+#     tile_id = 107300
+#     data = io.read_scaling_parameters(tile_id=tile_id)
+#     print data
+#     data.plot()
+#     import matplotlib.pyplot as plt
+#     plt.show()

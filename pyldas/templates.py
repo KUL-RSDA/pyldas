@@ -35,11 +35,42 @@ def get_template(param):
     elif param == 'xhourly':
         dtype, hdr, length = template_xhourly()
 
+    elif param == 'scaling':
+        dtype, hdr, length = template_scaling()
+
     else:
         print 'No template found for "' + param + '".'
         dtype, hdr, length = (None, None, None)
 
     return dtype, hdr, length
+
+def template_scaling(sensor='SMOS'):
+    """ Template for reading scaling files. """
+
+    # 23 header fields + 7 incidence angles
+    # TODO: allow for a different number of inc. angles when using for SMAP (# angles on hdr pos 20)
+    hdr = 32
+    length = 19
+
+    if sensor == 'SMOS':
+        angles = [30,35,40,45,50,55,60]
+    else:
+        angles = [40,]
+
+    dtype = np.dtype([('lon', '>f4'),('lat', '>f4'),('tile_id', '>i4')]+
+                     [('m_obs_H_%i'%ang, '>f4') for ang in angles] +
+                     [('s_obs_H_%i'%ang, '>f4') for ang in angles] +
+                     [('m_mod_H_%i'%ang, '>f4') for ang in angles] +
+                     [('s_mod_H_%i'%ang, '>f4') for ang in angles] +
+                     [('N_data_H_%i'%ang, '>i4') for ang in angles] +
+                     [('m_obs_V_%i'%ang, '>f4') for ang in angles] +
+                     [('s_obs_V_%i'%ang, '>f4') for ang in angles] +
+                     [('m_mod_V_%i'%ang, '>f4') for ang in angles] +
+                     [('s_mod_V_%i'%ang, '>f4') for ang in angles] +
+                     [('N_data_V_%i'%ang, '>i4') for ang in angles])
+
+    return dtype, hdr, length
+
 
 def template_tilegrids():
     """" Template for reading the 'tilegrids' binary file """
