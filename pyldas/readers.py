@@ -134,11 +134,20 @@ class LDAS_io(object):
 
         return pd.DataFrame(res)
 
+    def get_species(self, pol=None, orbit=None, ang=None):
+
+        pol = 1 if pol == 'H' else 2
+        orbit = 1 if orbit == 'A' else 2
+
+        return self.obsparam.loc[(self.obsparam['pol'] == pol) & \
+                                 (self.obsparam['orbit'] == orbit) & \
+                                 (self.obsparam['ang'] == ang),'species'].values[0]
 
     def read_fortran_binary(self, fname, dtype,
                             hdr=None,
                             length=None,
                             reg_ftags=True,
+                            loc=None,
                             idx=None):
         """
         Class for reading fortran binary files
@@ -159,6 +168,9 @@ class LDAS_io(object):
         reg_ftags : Boolean
             If True, a fortran tag (byte) is expected before and after each data field, otherwise
             only before and after each data block (only the case for tilegrids files)
+        loc : int
+            read only the <loc>-th data element of the file. (only works if reg_ftags is True)
+            TODO: currently rather useless for ObsFcstAna, because file-lengths don't make much sense
         idx : str
             If specified, the data of the field named 'idx' will be used as index of the output data frame
 
@@ -192,20 +204,32 @@ class LDAS_io(object):
             if length is None:
                 length = len(self.tilecoord)
 
-        data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
+        if loc is None:
+            data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
+        else:
+            data = pd.DataFrame(columns=dtype.names, index=(loc,))
+
+        if length==0:
+            # print 'Empty file'
+            return None
 
         # read data
         if reg_ftags is True:
             for dt in dtype.names:
-                fid.seek(4, 1)  # skip fortran tag
-                data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
-                fid.seek(4, 1)  # skip fortran tag
+                if loc is None:
+                    fid.seek(4, 1)  # skip fortran tag
+                    data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
+                    fid.seek(4, 1)  # skip fortran tag
+                else:
+                    fid.seek(4 + 4*loc, 1)
+                    data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).byteswap().newbyteorder()
+                    fid.seek(4 + 4*length - 4*loc - 4, 1)
 
         else:
             for i in np.arange(length):
                 fid.seek(4, 1)  # skip fortran tag
                 for dt in dtype.names:
-                    data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0].byteswap().newbyteorder()
+                    data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
                 fid.seek(4, 1)  # skip fortran tag
 
         fid.close()
@@ -217,10 +241,11 @@ class LDAS_io(object):
         return data
 
 
-    def read_tilegrids(self):
+    def read_tilegrids(self, fname=None):
         """ Read the 'tilegrids' file. """
 
-        fname = find_files(self.paths.rc_out, 'tilegrids')
+        if fname is None:
+            fname = find_files(self.paths.rc_out, 'tilegrids')
 
         dtype, hdr, length = get_template('tilegrids')
 
@@ -233,17 +258,18 @@ class LDAS_io(object):
         return data
 
 
-    def read_tilecoord(self):
+    def read_tilecoord(self, fname=None):
         """ Read the 'tilecoords' file. """
 
-        fname = find_files(self.paths.rc_out, 'tilecoord')
+        if fname is None:
+            fname = find_files(self.paths.rc_out, 'tilecoord')
 
         dtype, hdr, length = get_template('tilecoord')
 
         return self.read_fortran_binary(fname, dtype, hdr=hdr)
 
 
-    def read_scaling_parameters(self, pentad=1, tile_id=None):
+    def read_scaling_parameters(self, pentad=1, fname=None, tile_id=None):
         """
         Class for reading scaling files. These hold the observation and model mean and standard deviation, and
         number of observations per per pentade.
@@ -251,7 +277,9 @@ class LDAS_io(object):
         Parameters
         ----------
         pentad : int
-            If no tile-id is provided, only one pentad will be read
+            If no tile-id / filename is provided, only one pentad will be read
+        fname : str
+            The path to a scaling file that should be read
         tile_id : int
             If provided, the scaling files for all pentads will be read for the specified tile_id
 
@@ -261,11 +289,15 @@ class LDAS_io(object):
             Mean, Std.dev, and N_data for model forecasts and observations.
 
         """
+        # TODO: WRONG TREATMENT OF ORBIT DIRECTION! A/D IS IN THE FILENMAE BEFORE THE PENTADE!
 
         dtype, hdr, length = get_template('scaling')
 
         if tile_id is None:
-            data = self.read_fortran_binary(self.files[pentad], dtype, hdr=hdr, length=length, idx='tile_id')
+            if fname is not None:
+                data = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
+            else:
+                data = self.read_fortran_binary(self.files[pentad], dtype, hdr=hdr, length=length)
 
         else:
             pentads = np.arange(73)+1
@@ -278,7 +310,6 @@ class LDAS_io(object):
                 data.loc[pentad,fields] = tmp_data.loc[tile_id, fields].values
 
         return data
-
 
     def read_image(self, yr, mo, da, hr, mi, species=None):
         """"
@@ -320,6 +351,44 @@ class LDAS_io(object):
             img = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
 
         return img
+
+    def write_scaling_files(self):
+
+        fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\test.bin"
+        dummy = self.read_scaling_parameters(pentad=0)
+
+        modes = np.array([1,0])
+        sdate = np.array([2013,12,11,21,0])
+        edate = np.array([2014,1,25,21,0])
+        lengths = np.array([110772,7,1])# tiles, incidence angles, whatever
+        inc = np.array([30.,35.,40.,45.,50.,55.,60.])
+
+        fid = open(fname, 'wb')
+        self.write_fortran_block(fid, modes)
+        self.write_fortran_block(fid, sdate)
+        self.write_fortran_block(fid, edate)
+        self.write_fortran_block(fid, lengths)
+        self.write_fortran_block(fid, inc)
+
+        for f in dummy.columns.values:
+            self.write_fortran_block(fid,dummy[f].values)
+
+        fid.close()
+
+    @staticmethod
+    def write_fortran_block(fid, data):
+        """" Writes a data block (1D numpy array) into a binary file including fortran tags """
+
+        # force 32 bit if 64 bit (usually for float)
+        dtype = data.dtype.newbyteorder('>')
+        if dtype.str[2]=='8':
+            dtype = np.dtype(dtype.str[0:2]+'4')
+
+        ftag = data.size * dtype.itemsize
+        np.array(ftag).astype('>i4').tofile(fid)
+        data.astype(dtype).tofile(fid)
+        np.array(ftag).astype('>i4').tofile(fid)
+
 
     @staticmethod
     def ncfile_init(fname, dimensions, variables):

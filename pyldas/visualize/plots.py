@@ -86,18 +86,39 @@ def plot_model_image():
 
 def plot_innov(spc=8, row=35, col=65):
 
-    ts = LDAS_io('ObsFcstAna').timeseries
+    ts_scl = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_scaled').timeseries
+    ts_usc = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_unscaled').timeseries
 
-    df = pd.DataFrame(index=ts.time)
+    plt.figure(figsize=(18,11))
 
-    df['obs'] = ts['obs_obs'][spc,row,col].values
-    df['fcst'] = ts['obs_fcst'][spc,row,col].values
+    ax1 = plt.subplot(311)
+    df = pd.DataFrame(index=ts_scl.time)
+    df['obs'] = ts_scl['obs_obs'][spc,row,col].values
+    df['fcst'] = ts_scl['obs_fcst'][spc,row,col].values
+    df.dropna().plot(ax=ax1)
 
-    df.dropna().plot()
+    ax2 = plt.subplot(312)
+    df = pd.DataFrame(index=ts_usc.time)
+    df['obs'] = ts_usc['obs_obs'][spc,row,col].values
+    df['fcst'] = ts_usc['obs_fcst'][spc,row,col].values
+    df.dropna().plot(ax=ax2)
+
+    ax3 = plt.subplot(313)
+    df = pd.DataFrame(index=ts_usc.time)
+    df['obs_diff'] = ts_scl['obs_obs'][spc,row,col].values - ts_usc['obs_obs'][spc,row,col].values
+    df['fcst_diff'] = ts_scl['obs_fcst'][spc,row,col].values - ts_usc['obs_fcst'][spc,row,col].values
+    df.dropna().plot(ax=ax3)
+
+    print len(ts_scl['obs_obs'][spc,row,col].dropna('time'))
+    print len(ts_scl['obs_fcst'][spc,row,col].dropna('time'))
+    print len(ts_usc['obs_obs'][spc,row,col].dropna('time'))
+    print len(ts_usc['obs_fcst'][spc,row,col].dropna('time'))
+
+    plt.tight_layout()
     plt.show()
 
-    ts.close()
-
+    ts_scl.close()
+    ts_usc.close()
 
 if __name__=='__main__':
     plot_innov()

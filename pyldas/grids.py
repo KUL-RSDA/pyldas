@@ -3,8 +3,6 @@ import numpy as np
 
 from ease_grid.ease2_grid import EASE2_grid
 
-from pyldas.functions import find_files
-from pyldas.constants import paths
 from pyldas.readers import LDAS_io
 
 class EASE2(EASE2_grid):
@@ -59,6 +57,19 @@ class EASE2(EASE2_grid):
 
         super(EASE2, self).__init__(res, map_scale=map_scale)
 
+    def colrow2tileid(self, col, row):
+
+        ind_col = self.tilecoord['i_indg']-self.tilegrids.loc['domain','i_offg'] == col
+        ind_row = self.tilecoord['j_indg']-self.tilegrids.loc['domain','j_offg'] == row
+
+        return self.tilecoord.loc[ind_col & ind_row,'tile_id'].values[0]
+
+    def tileid2colrow(self, tile_id):
+
+        col = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'i_indg'] - self.tilegrids.loc['domain','i_offg']).values[0]
+        row = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'j_indg'] - self.tilegrids.loc['domain','j_offg']).values[0]
+
+        return col, row
 
     def colrow2lonlat(self, col, row):
         """ Convert col/row (domain-based) into lon/lat """
@@ -68,9 +79,9 @@ class EASE2(EASE2_grid):
         """ Find nearest tile (col/row) from any given lon/lat """
         londif = np.abs(self.londim - lon)
         latdif = np.abs(self.latdim - lat)
-        lon = np.where(np.abs(londif-londif.min())<0.0001)[0][0]
-        lat = np.where(np.abs(latdif-latdif.min())<0.0001)[0][0]
-        return lon, lat
+        col = np.where(np.abs(londif-londif.min())<0.0001)[0][0]
+        row = np.where(np.abs(latdif-latdif.min())<0.0001)[0][0]
+        return col, row
 
     def lonlat2tilenum(self, lon, lat):
         """" Get the (domain-based) tile number for a given lon/lat """
