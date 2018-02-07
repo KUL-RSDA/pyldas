@@ -120,8 +120,73 @@ def plot_innov(spc=8, row=35, col=65):
     ts_scl.close()
     ts_usc.close()
 
+def plot_scaling_parameters():
+
+    # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\obs_scaling_old\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
+    # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\pentadal_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
+    fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\harmonic_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
+
+    io = LDAS_io('scale')
+
+    res = io.read_scaling_parameters(fname=fname)
+
+    angle = 30
+
+    res = res[['lon','lat','m_mod_H_%2i'%angle,'m_mod_V_%2i'%angle,'m_obs_H_%2i'%angle,'m_obs_V_%2i'%angle]]
+    res.replace(-9999.,np.nan,inplace=True)
+
+    lats = res['lat'].values
+    lons = res['lon'].values
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+
+    figsize = (17,8)
+
+    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+    ax = plt.subplot(221)
+    m = Basemap(projection='mill',llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x,y = m(lons,lats)
+    ax.scatter(x,y,s=10,c=res['m_obs_H_%2i'%angle].values,marker='o', cmap='jet',vmin=220,vmax=300)
+
+    ax = plt.subplot(222)
+    m = Basemap(projection='mill',llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x,y = m(lons,lats)
+    ax.scatter(x,y,s=10,c=res['m_mod_H_%2i'%angle].values,marker='o', cmap='jet', vmin=220, vmax=300)
+
+
+    ax = plt.subplot(223)
+    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
+                resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x, y = m(lons, lats)
+    ax.scatter(x, y, s=10, c=res['m_obs_V_%2i'%angle].values, marker='o', cmap='jet', vmin=220, vmax=300)
+
+    ax = plt.subplot(224)
+    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
+                resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x, y = m(lons, lats)
+    ax.scatter(x, y, s=10, c=res['m_mod_V_%2i'%angle].values, marker='o', cmap='jet', vmin=220, vmax=300)
+
+    plt.tight_layout()
+    plt.show()
+
 if __name__=='__main__':
-    plot_innov()
+    plot_scaling_parameters()
 
 
 # llcrnrlat = -58.,
@@ -136,8 +201,8 @@ if __name__=='__main__':
 # urcrnrlon=157.,
 
 # USA
-# llcrnrlat=-58.,
-# urcrnrlat=60.,
-# llcrnrlon=-132.,
-# urcrnrlon=157.,
+# llcrnrlat = 24.,
+# urcrnrlat = 51.,
+# llcrnrlon = -128.,
+# urcrnrlon = -64.,
 

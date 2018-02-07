@@ -47,7 +47,7 @@ class paths(object):
 
         # default experiment name
         if exp is None:
-            exp = 'US_M36_EASEv2_atL_DA_7Thv_CalDnew_M'
+            exp = 'US_M36_SMOS_noDA_unscaled'
 
         # default domain name
         if domain is None:
@@ -55,7 +55,7 @@ class paths(object):
 
         self.exp_root = os.path.join(self.root,exp,'output',domain)
 
-        self.scalefile_root = os.path.join(self.root,exp,'scaling_files')
+        self.scalefile_root = os.path.join(self.root,exp,'obs_scaling')
 
         self.ana = os.path.join(self.exp_root,'ana')
         self.cat = os.path.join(self.exp_root,'cat')

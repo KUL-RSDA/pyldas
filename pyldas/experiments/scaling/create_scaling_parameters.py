@@ -9,6 +9,7 @@ import xarray as xr
 
 from pyldas.grids import EASE2
 from pyldas.readers import LDAS_io
+from pyldas.functions import find_files
 from pyldas.templates import template_scaling
 
 from myprojects.timeseries import calc_clim, calc_pentadal_mean
@@ -23,20 +24,8 @@ def calc_clim_p(ts, n):
 
     return clim
 
-def calc_vals_per_pent(ts):
-    xts = ts.copy().dropna()
-    doys = xts.copy().dropna().index.dayofyear.values
-    doys[xts.index.is_leap_year & (doys>59)] -= 1
-    pentads = np.floor((doys - 1) / 5.)
-
-    res = pd.Series(index=np.arange(73)+1)
-    for pent in np.arange(73)+1:
-        res.loc[pent] = len(xts.loc[pentads==pent])
-
-    return res.astype('int')
-
 def run():
-    froot = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\scaling_files"
+    froot = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling"
     fbase = '7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_'
 
     io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS_noDA_unscaled')
@@ -67,9 +56,10 @@ def run():
 
     data = xr.Dataset({'m_obs_p':darr.astype('float32'),
                        'm_mod_p':darr.astype('float32'),
+                       'N_data_p':darr.astype('int32'),
                        'm_obs_h':darr.astype('float32'),
                        'm_mod_h':darr.astype('float32'),
-                       'N_data':darr.astype('int32')})
+                       'N_data_h':darr.astype('int32')})
 
     # ----- calculate mean and reshuffle -----
     for i,til in enumerate(tiles):
@@ -81,18 +71,21 @@ def run():
                     spc = io.get_species(pol=pol, ang=ang, orbit=orb)
                     col,row = grid.tileid2colrow(til)
 
-                    obs = io.timeseries['obs_obs'][spc-1,col,row].to_series()
-                    mod = io.timeseries['obs_fcst'][spc-1,col,row].to_series()
+                    obs = io.timeseries['obs_obs'][spc-1,row,col].to_series()
+                    mod = io.timeseries['obs_fcst'][spc-1,row,col].to_series()
 
-                    data['m_obs_p'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = calc_pentadal_mean(obs).values
-                    data['m_mod_p'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = calc_pentadal_mean(mod).values
+                    clim_obs, n_obs = calc_pentadal_mean(obs)
+                    clim_mod, n_mod = calc_pentadal_mean(mod)
+                    data['m_obs_p'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = clim_obs.values
+                    data['m_mod_p'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = clim_mod.values
+                    data['N_data_p'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = n_obs.values
+
                     data['m_obs_h'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = calc_clim_p(obs, n=n).values
                     data['m_mod_h'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = calc_clim_p(mod, n=n).values
+                    data['N_data_h'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = len(obs.dropna())
 
-                    s = timeit.default_timer()
-                    data['N_data'].sel(tile_id=til, pol=pol, angle=ang, orbit=orb)[:] = calc_vals_per_pent(obs).values
 
-    modes = np.array([1, 0])
+    modes = np.array([0, 0])
     sdate = np.array([2010, 1, 1, 0, 0])
     edate = np.array([2015, 12, 31, 0, 0])
     lengths = np.array([len(tiles), len(angles), 1])  # tiles, incidence angles, whatever
@@ -101,6 +94,9 @@ def run():
     for pent in pentads:
         for orb in orbits:
 
+            # !!! inconsistent with the definition in the obs_paramfile (species) !!!
+            modes[0] = 1 if orb == 'A' else 0
+
             # pentadal means
             res = template.copy()
 
@@ -108,9 +104,11 @@ def run():
                 for pol in pols:
                     tmp = data['m_obs_p'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'm_obs_' + pol + '_%i' % ang] = tmp
+                    res.loc[tmp.index, 's_obs_' + pol + '_%i' % ang] = tmp
                     tmp = data['m_mod_p'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'm_mod_' + pol + '_%i' % ang] = tmp
-                    tmp = data['N_data'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
+                    res.loc[tmp.index, 's_mod_' + pol + '_%i' % ang] = tmp
+                    tmp = data['N_data_p'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'N_data_' + pol + '_%i' % ang] = tmp
 
             res.replace(np.nan,-9999,inplace=True)
@@ -134,9 +132,11 @@ def run():
                 for pol in pols:
                     tmp = data['m_obs_h'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'm_obs_' + pol + '_%i' % ang] = tmp
+                    res.loc[tmp.index, 's_obs_' + pol + '_%i' % ang] = tmp
                     tmp = data['m_mod_h'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'm_mod_' + pol + '_%i' % ang] = tmp
-                    tmp = data['N_data'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
+                    res.loc[tmp.index, 's_mod_' + pol + '_%i' % ang] = tmp
+                    tmp = data['N_data_h'].sel(pol=pol, angle=ang, orbit=orb, pentad=pent).to_series()
                     res.loc[tmp.index, 'N_data_' + pol + '_%i' % ang] = tmp
 
             res.replace(np.nan, -9999, inplace=True)
@@ -152,3 +152,15 @@ def run():
                 io.write_fortran_block(fid, res[f].values)
             fid.close()
 
+def replace_orbit_field():
+
+    root = r'C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling'
+
+    for f in find_files(root,'_D_p'):
+        data = np.fromfile(f,'>i4')
+        data[1] = 0
+        data.tofile(f)
+
+
+# if __name__ == '__main__':
+#     run()

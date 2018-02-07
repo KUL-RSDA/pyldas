@@ -36,7 +36,7 @@ def plot_Tb_clims():
     clim = pd.DataFrame(index=np.arange(365)+1)
     for n in [0,1,2,3,10,]:
         clim[n] = calc_clim(arr,n=n)
-    clim['pentad_mean'] = calc_pentadal_mean(arr)
+    clim['pentad_mean'] = calc_pentadal_mean(arr)[0]
     clim.plot(linewidth=2,ax=ax)
     ax.set_xlim((0,365))
     ax.set_ylim((180,285))
@@ -70,7 +70,7 @@ def plot_Tb_clims():
     clim = pd.DataFrame(index=np.arange(365)+1)
     for n in [0,1,2,3,10,]:
         clim[n] = calc_clim(arr,n=n)
-    clim['pentad_mean'] = calc_pentadal_mean(arr)
+    clim['pentad_mean'] = calc_pentadal_mean(arr)[0]
     clim.plot(linewidth=2,ax=ax)
     ax.set_xlim((0,365))
     ax.set_ylim((190,250))
@@ -93,3 +93,6 @@ def plot_Tb_clims():
 
     plt.tight_layout()
     plt.show()
+
+if __name__=='__main__':
+    plot_Tb_clims()

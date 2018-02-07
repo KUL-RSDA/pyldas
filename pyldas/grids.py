@@ -76,7 +76,7 @@ class EASE2(EASE2_grid):
         return self.londim[col], self.latdim[row]
 
     def lonlat2colrow(self, lon, lat):
-        """ Find nearest tile (col/row) from any given lon/lat """
+        """ Find nearest GLOBAL tile (col/row) from any given lon/lat """
         londif = np.abs(self.londim - lon)
         latdif = np.abs(self.latdim - lat)
         col = np.where(np.abs(londif-londif.min())<0.0001)[0][0]
@@ -88,5 +88,5 @@ class EASE2(EASE2_grid):
         col, row = self.lonlat2colrow(lon, lat)
         tilenum = np.where((self.tilecoord['i_indg'] == col)&
                            (self.tilecoord['j_indg'] == row))[0][0]
-        return tilenum
+        return tilenum + 1
 

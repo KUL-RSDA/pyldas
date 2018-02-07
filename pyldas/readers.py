@@ -211,7 +211,7 @@ class LDAS_io(object):
 
         if length==0:
             # print 'Empty file'
-            return None
+            return data
 
         # read data
         if reg_ftags is True:
@@ -266,7 +266,10 @@ class LDAS_io(object):
 
         dtype, hdr, length = get_template('tilecoord')
 
-        return self.read_fortran_binary(fname, dtype, hdr=hdr)
+        data = self.read_fortran_binary(fname, dtype, hdr=hdr)
+        data.index += 1 # index equals the 'tilenum' which starts at 1!!
+
+        return data
 
 
     def read_scaling_parameters(self, pentad=1, fname=None, tile_id=None):
@@ -452,7 +455,7 @@ class LDAS_io(object):
         """" Convert fortran binary image into a netCDF data cube """
 
         out_path = walk_up_folder(self.files[0],3)
-        out_file = os.path.join(out_path,'.'.join(os.path.basename(self.files[0]).split('.')[:-2]) + '_images.nc')
+        out_file = os.path.join(out_path,self.param + '_images.nc')
 
         # get variable names from fortran reader template
         variables = get_template(self.param)[0].names
@@ -463,6 +466,19 @@ class LDAS_io(object):
 
         # Innovation file data has an additional 'species' dimension
         if self.param == 'ObsFcstAna':
+            # Remove dates which do not contain any data
+            nodata = list()
+            for i, dt in enumerate(dates):
+                print '%d / %d' % (i, len(dates))
+                data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+                if len(data) == 0:
+                    nodata.append(dt)
+
+            dates = dates.drop(nodata)
+            if len(dates) == 0:
+                print 'Images do not contain valid data.'
+                return
+
             spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
             dimensions = OrderedDict([('species',spc), ('lat',lats), ('lon',lons), ('time',dates)])
         else:
@@ -507,16 +523,6 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('ObsFcstAna')
+    io = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_unscaled')
+    io.bin2netcdf()
 
-
-
-
-#     io = LDAS_io('scale')
-#
-#     tile_id = 107300
-#     data = io.read_scaling_parameters(tile_id=tile_id)
-#     print data
-#     data.plot()
-#     import matplotlib.pyplot as plt
-#     plt.show()
