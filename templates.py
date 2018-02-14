@@ -1,7 +1,6 @@
 
 import numpy as np
 
-
 def get_template(param):
     """
     Return templates for reading fortran binary files
@@ -38,11 +37,141 @@ def get_template(param):
     elif param == 'scaling':
         dtype, hdr, length = template_scaling()
 
+    elif param == 'RTMparam':
+        dtype, hdr, length = template_RTMparam()
+
+    elif param == 'catparam':
+        dtype, hdr, length = template_catparam()
+
+    elif (param == 'incr')|(param == 'rstrt'):
+        dtype, hdr, length = template_incr_rstrt()
+
     else:
         print 'No template found for "' + param + '".'
         dtype, hdr, length = (None, None, None)
 
     return dtype, hdr, length
+
+def template_catparam():
+    """" Template for reading rtm parameter files """
+
+    hdr = None
+    length = None
+    dtype = np.dtype([('dpth', '>f4'),
+                      ('dzsf', '>f4'),
+                      ('dzrz', '>f4'),
+                      ('dzpr', '>f4'),
+                      ('dzgt1', '>f4'),
+                      ('dzgt2', '>f4'),
+                      ('dzgt3', '>f4'),
+                      ('dzgt4', '>f4'),
+                      ('dzgt5', '>f4'),
+                      ('dzgt6', '>f4'),
+                      ('poros', '>f4'),
+                      ('cond', '>f4'),
+                      ('psis', '>f4'),
+                      ('bee', '>f4'),
+                      ('wpwet', '>f4'),
+                      ('gnu', '>f4'),
+                      ('vgmax', '>f4'),
+                      ('vegcls', '>i4'),
+                      ('soilcls30', '>i4'),
+                      ('soilcls100', '>i4'),
+                      ('bf1', '>f4'),
+                      ('bf2', '>f4'),
+                      ('bf3', '>f4'),
+                      ('cdcr1', '>f4'),
+                      ('cdcr2', '>f4'),
+                      ('ars1', '>f4'),
+                      ('ars2', '>f4'),
+                      ('ars3', '>f4'),
+                      ('ara1', '>f4'),
+                      ('ara2', '>f4'),
+                      ('ara3', '>f4'),
+                      ('ara4', '>f4'),
+                      ('arw1', '>f4'),
+                      ('arw2', '>f4'),
+                      ('arw3', '>f4'),
+                      ('arw4', '>f4'),
+                      ('tsa1', '>f4'),
+                      ('tsa2', '>f4'),
+                      ('tsb1', '>f4'),
+                      ('tsb2', '>f4'),
+                      ('atau', '>f4'),
+                      ('btau', '>f4'),
+                      ('gravel30', '>f4'),
+                      ('orgC30', '>f4'),
+                      ('orgC', '>f4'),
+                      ('sand30', '>f4'),
+                      ('clay30', '>f4'),
+                      ('sand', '>f4'),
+                      ('clay', '>f4'),
+                      ('wpwet30', '>f4'),
+                      ('poros30', '>f4')])
+
+    return dtype, hdr, length
+
+
+def template_RTMparam():
+    """" Template for reading rtm parameter files """
+
+    hdr = 3
+    length = 1
+    dtype = np.dtype([('vegcls', '>i4'),
+                      ('soilcls', '>i4'),
+                      ('sand', '>f4'),
+                      ('clay', '>f4'),
+                      ('poros', '>f4'),
+                      ('wang_wt', '>f4'),       # transition soil moisture
+                      ('wang_wp', '>f4'),       # wilting point
+                      ('rgh_hmin', '>f4'),      # soil roughness (at saturation)
+                      ('rgh_hmax', '>f4'),      # soil roughness (at/below transition soil moisture)
+                      ('rgh_wmin', '>f4'),
+                      ('rgh_wmax', '>f4'),
+                      ('rgh_Nrh', '>f4'),       # angular dependence of roughness
+                      ('rgh_Nrv', '>f4'),
+                      ('rgh_polmix', '>f4'),    # polarization mixing ration
+                      ('omega', '>f4'),         # scattering albedo
+                      ('bh', '>f4'),            # vegetation structure parameter
+                      ('bv', '>f4'),
+                      ('lewt', '>f4')])         # leave equivalent water thickness
+
+    return dtype, hdr, length
+
+
+def template_incr_rstrt():
+    """" Template for reading increment or restart files """
+
+    hdr = None
+    length = None
+    dtype = np.dtype([('tc1', '>f4'),
+                      ('tc2', '>f4'),
+                      ('tc4', '>f4'),
+                      ('qa1', '>f4'),
+                      ('qa2', '>f4'),
+                      ('qa4', '>f4'),
+                      ('capac', '>f4'),
+                      ('catdef', '>f4'),
+                      ('rzexc', '>f4'),
+                      ('srfexc', '>f4'),
+                      ('ght1', '>f4'),
+                      ('ght2', '>f4'),
+                      ('ght3', '>f4'),
+                      ('ght4', '>f4'),
+                      ('ght5', '>f4'),
+                      ('ght6', '>f4'),
+                      ('wesn1', '>f4'),
+                      ('wesn2', '>f4'),
+                      ('wesn3', '>f4'),
+                      ('htsn1', '>f4'),
+                      ('htsn2', '>f4'),
+                      ('htsn3', '>f4'),
+                      ('sndz1', '>f4'),
+                      ('sndz2', '>f4'),
+                      ('sndz3', '>f4')])
+
+    return dtype, hdr, length
+
 
 def template_scaling(sensor='SMOS'):
     """ Template for reading scaling files. """

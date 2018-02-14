@@ -1,4 +1,6 @@
 
+import os
+
 import pandas as pd
 import numpy as np
 
@@ -7,7 +9,152 @@ from mpl_toolkits.basemap import Basemap
 
 from pyldas.grids import EASE2
 
-from pyldas.readers import LDAS_io
+from pyldas.interface import LDAS_io
+
+
+def plot_rtm_parameters():
+
+    root = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters'
+
+    experiments = ['US_M36_SMOS_DA_calibrated_scaled', 'US_M36_SMOS_DA_nocal_scaled_harmonic']
+
+    tc = LDAS_io().tilecoord
+    tg = LDAS_io().tilegrids
+
+    tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
+    tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
+
+    lons = np.unique(tc.com_lon.values)
+    lats = np.unique(tc.com_lat.values)[::-1]
+
+    lons, lats = np.meshgrid(lons, lats)
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+    figsize = (20, 10)
+    # cbrange = (-20, 20)
+    cmap = 'jet'
+    fontsize = 20
+
+    for exp in experiments:
+
+        outpath = os.path.join(root,exp)
+        if not os.path.exists(outpath):
+            os.makedirs(outpath)
+
+        params = LDAS_io(exp=exp).read_params('RTMparam')
+
+        for param in params:
+
+            fname = os.path.join(outpath, param + '.png')
+
+            img = np.full(lons.shape, np.nan)
+            img[tc.j_indg.values, tc.i_indg.values] = params[param].values
+            img_masked = np.ma.masked_invalid(img)
+
+            f = plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+            m = Basemap(projection='mill',
+                        llcrnrlat=llcrnrlat,
+                        urcrnrlat=urcrnrlat,
+                        llcrnrlon=llcrnrlon,
+                        urcrnrlon=urcrnrlon,
+                        resolution='c')
+
+            m.drawcoastlines()
+            m.drawcountries()
+            m.drawstates()
+
+            im = m.pcolormesh(lons, lats, img_masked, cmap=cmap, latlon=True)
+
+            # im.set_clim(vmin=cbrange[0], vmax=cbrange[1])
+
+            cb = m.colorbar(im, "bottom", size="7%", pad="8%")
+
+            for t in cb.ax.get_xticklabels():
+                t.set_fontsize(fontsize)
+            for t in cb.ax.get_yticklabels():
+                t.set_fontsize(fontsize)
+
+            plt.title(param)
+
+            plt.savefig(fname, dpi=f.dpi)
+            plt.close()
+
+
+def plot_rtm_parameter_differences():
+
+    outpath = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters\differences'
+
+    tc = LDAS_io().tilecoord
+    tg = LDAS_io().tilegrids
+
+    tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
+    tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
+
+    lons = np.unique(tc.com_lon.values)
+    lats = np.unique(tc.com_lat.values)[::-1]
+
+    lons, lats = np.meshgrid(lons, lats)
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+    figsize = (20, 10)
+    #
+    cmap = 'RdYlBu'
+    fontsize = 20
+
+    params_cal = LDAS_io(exp='US_M36_SMOS_DA_calibrated_scaled').read_params('RTMparam')
+    params_uncal = LDAS_io(exp='US_M36_SMOS_DA_nocal_scaled_harmonic').read_params('RTMparam')
+
+    for param in params_cal:
+
+        if (param == 'bh')|(param == 'bv'):
+            cbrange = (-0.3, 0.3)
+        elif (param == 'omega'):
+            cbrange = (-0.1, 0.1)
+        else:
+            cbrange = (-1, 1)
+
+        fname = os.path.join(outpath, param + '.png')
+
+        img = np.full(lons.shape, np.nan)
+        img[tc.j_indg.values, tc.i_indg.values] = params_cal[param].values - params_uncal[param].values
+        img_masked = np.ma.masked_invalid(img)
+
+        f = plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+        m = Basemap(projection='mill',
+                    llcrnrlat=llcrnrlat,
+                    urcrnrlat=urcrnrlat,
+                    llcrnrlon=llcrnrlon,
+                    urcrnrlon=urcrnrlon,
+                    resolution='c')
+
+        m.drawcoastlines()
+        m.drawcountries()
+        m.drawstates()
+
+        im = m.pcolormesh(lons, lats, img_masked, cmap=cmap, latlon=True)
+
+        im.set_clim(vmin=cbrange[0], vmax=cbrange[1])
+
+        cb = m.colorbar(im, "bottom", size="7%", pad="8%")
+
+        for t in cb.ax.get_xticklabels():
+            t.set_fontsize(fontsize)
+        for t in cb.ax.get_yticklabels():
+            t.set_fontsize(fontsize)
+
+        plt.title(param)
+
+        plt.savefig(fname, dpi=f.dpi)
+        plt.close()
+
 
 def plot_ease_img(data,tag,
                   llcrnrlat=24,
@@ -120,73 +267,8 @@ def plot_innov(spc=8, row=35, col=65):
     ts_scl.close()
     ts_usc.close()
 
-def plot_scaling_parameters():
-
-    # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\obs_scaling_old\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
-    # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\pentadal_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
-    fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\harmonic_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
-
-    io = LDAS_io('scale')
-
-    res = io.read_scaling_parameters(fname=fname)
-
-    angle = 30
-
-    res = res[['lon','lat','m_mod_H_%2i'%angle,'m_mod_V_%2i'%angle,'m_obs_H_%2i'%angle,'m_obs_V_%2i'%angle]]
-    res.replace(-9999.,np.nan,inplace=True)
-
-    lats = res['lat'].values
-    lons = res['lon'].values
-
-    llcrnrlat = 24
-    urcrnrlat = 51
-    llcrnrlon = -128
-    urcrnrlon = -64
-
-    figsize = (17,8)
-
-    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
-
-    ax = plt.subplot(221)
-    m = Basemap(projection='mill',llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,resolution='c')
-    m.drawcoastlines()
-    m.drawcountries()
-    m.drawstates()
-    x,y = m(lons,lats)
-    ax.scatter(x,y,s=10,c=res['m_obs_H_%2i'%angle].values,marker='o', cmap='jet',vmin=220,vmax=300)
-
-    ax = plt.subplot(222)
-    m = Basemap(projection='mill',llcrnrlat=llcrnrlat,urcrnrlat=urcrnrlat,llcrnrlon=llcrnrlon,urcrnrlon=urcrnrlon,resolution='c')
-    m.drawcoastlines()
-    m.drawcountries()
-    m.drawstates()
-    x,y = m(lons,lats)
-    ax.scatter(x,y,s=10,c=res['m_mod_H_%2i'%angle].values,marker='o', cmap='jet', vmin=220, vmax=300)
-
-
-    ax = plt.subplot(223)
-    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
-                resolution='c')
-    m.drawcoastlines()
-    m.drawcountries()
-    m.drawstates()
-    x, y = m(lons, lats)
-    ax.scatter(x, y, s=10, c=res['m_obs_V_%2i'%angle].values, marker='o', cmap='jet', vmin=220, vmax=300)
-
-    ax = plt.subplot(224)
-    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
-                resolution='c')
-    m.drawcoastlines()
-    m.drawcountries()
-    m.drawstates()
-    x, y = m(lons, lats)
-    ax.scatter(x, y, s=10, c=res['m_mod_V_%2i'%angle].values, marker='o', cmap='jet', vmin=220, vmax=300)
-
-    plt.tight_layout()
-    plt.show()
-
 if __name__=='__main__':
-    plot_scaling_parameters()
+    plot_rtm_parameter_differences()
 
 
 # llcrnrlat = -58.,

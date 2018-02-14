@@ -8,9 +8,11 @@ import xarray as xr
 from netCDF4 import Dataset, date2num
 from collections import OrderedDict
 
+from pyldas.grids import EASE2
+
 from pyldas.templates import get_template
-from pyldas.functions import find_files, walk_up_folder
-from pyldas.constants import paths
+from myprojects.functions import find_files, walk_up_folder
+from pyldas.paths import paths
 
 def s(line):
     """" Remove quotes from string """
@@ -66,27 +68,32 @@ class LDAS_io(object):
         self.paths = paths(exp=exp, domain=domain)
 
         self.obsparam = self.read_obsparam()
-        self.tilecoord = self.read_tilecoord()
-        self.tilegrids = self.read_tilegrids()
+        self.tilecoord = self.read_params('tilecoord')
+        self.tilegrids = self.read_params('tilegrids')
+
+        self.grid = EASE2(tilecoord=self.tilecoord, tilegrids=self.tilegrids)
 
         self.param = param
         if param is not None:
 
-            if param == 'scale':
-                self.files = find_files(self.paths.__getattribute__('scalefile_root'), param)
-            else:
-                self.files = find_files(self.paths.__getattribute__('exp_root'), param)
+            self.files = find_files(self.paths.__getattribute__('exp_root'), param)
 
-                # TODO: NetCDF generation not yet implemented for scaling files!
-                if self.files[0].find('images.nc') == -1:
-                    print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
-                    self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+            if self.files[0].find('images.nc') == -1:
+                print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
+                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+
+                # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
+                if self.param == 'xhourly':
+                    self.dates += pd.to_timedelta('2 hours')
+
+                self.dtype, self.hdr, self.length = get_template(self.param)
+
+            else:
+                self.images = xr.open_dataset(self.files[0])
+                if self.files[1].find('timeseries.nc') == -1:
+                    print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
                 else:
-                    self.images = xr.open_dataset(self.files[0])
-                    if self.files[1].find('timeseries.nc') == -1:
-                        print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
-                    else:
-                        self.timeseries = xr.open_dataset(self.files[1])
+                    self.timeseries = xr.open_dataset(self.files[1])
 
 
     def read_obsparam(self):
@@ -240,34 +247,23 @@ class LDAS_io(object):
 
         return data
 
-
-    def read_tilegrids(self, fname=None):
-        """ Read the 'tilegrids' file. """
-
-        if fname is None:
-            fname = find_files(self.paths.rc_out, 'tilegrids')
-
-        dtype, hdr, length = get_template('tilegrids')
-
-        data = self.read_fortran_binary(fname, dtype, length=length, reg_ftags=False)
-
-        # remove leading/trailing blanks from the txt file
-        data['gridtype'] = np.char.strip(data['gridtype'].values.astype('str'))
-        data.index = ['global', 'domain']
-
-        return data
-
-
-    def read_tilecoord(self, fname=None):
-        """ Read the 'tilecoords' file. """
+    def read_params(self, param, fname=None):
+        """ Read parameter files (tilegrids, tilecoord, RTMparam, catparam"""
 
         if fname is None:
-            fname = find_files(self.paths.rc_out, 'tilecoord')
+            fname = find_files(self.paths.rc_out, param)
 
-        dtype, hdr, length = get_template('tilecoord')
+        reg_ftags = False if param == 'tilegrids' else True
 
-        data = self.read_fortran_binary(fname, dtype, hdr=hdr)
-        data.index += 1 # index equals the 'tilenum' which starts at 1!!
+        dtype, hdr, length = get_template(param)
+        data = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length, reg_ftags=reg_ftags)
+        data.replace(-9999., np.nan, inplace=True)
+
+        if param == 'tilegrids':
+            data.index = ['global', 'domain']
+        else:
+            # index equals the 'tilenum' which starts at 1!!
+            data.index += 1
 
         return data
 
@@ -350,33 +346,21 @@ class LDAS_io(object):
             else:
                 fname = fname[0]
 
-            dtype, hdr, length = get_template(self.param)
-            img = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
+            img = self.read_fortran_binary(fname, self.dtype, hdr=self.hdr, length=self.length)
 
         return img
 
-    def write_scaling_files(self):
+    def read_ts(self, param, col, row, species=None,lonlat=True):
 
-        fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\test.bin"
-        dummy = self.read_scaling_parameters(pentad=0)
+        if lonlat is True:
+            col, row = self.grid.lonlat2colrow(col, row, domain=True)
 
-        modes = np.array([1,0])
-        sdate = np.array([2013,12,11,21,0])
-        edate = np.array([2014,1,25,21,0])
-        lengths = np.array([110772,7,1])# tiles, incidence angles, whatever
-        inc = np.array([30.,35.,40.,45.,50.,55.,60.])
+        if species is None:
+            ts = self.timeseries[param][col,row,:].to_series()
+        else:
+            ts = self.timeseries[param].sel(species=species)[col,row,:].to_series()
 
-        fid = open(fname, 'wb')
-        self.write_fortran_block(fid, modes)
-        self.write_fortran_block(fid, sdate)
-        self.write_fortran_block(fid, edate)
-        self.write_fortran_block(fid, lengths)
-        self.write_fortran_block(fid, inc)
-
-        for f in dummy.columns.values:
-            self.write_fortran_block(fid,dummy[f].values)
-
-        fid.close()
+        return ts
 
     @staticmethod
     def write_fortran_block(fid, data):
@@ -523,6 +507,8 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_unscaled')
+    io = LDAS_io('ObsFcstAna', 'US_M36_SMOS_noDA_cal_unscaled')
     io.bin2netcdf()
 
+
+    # io.read_ts('obs_obs', -113.480529785, 40.691051628, species=1).plot()

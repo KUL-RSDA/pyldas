@@ -1,22 +1,20 @@
 
 import os
 
-import timeit
-
 import numpy as np
 import pandas as pd
 import xarray as xr
 
 from pyldas.grids import EASE2
-from pyldas.readers import LDAS_io
-from pyldas.functions import find_files
+from pyldas.interface import LDAS_io
+from myprojects.functions import find_files
 from pyldas.templates import template_scaling
 
-from myprojects.timeseries import calc_clim, calc_pentadal_mean
+from myprojects.timeseries import calc_clim_harmonic, calc_pentadal_mean
 
 def calc_clim_p(ts, n):
 
-    clim = calc_clim(ts, n=n)
+    clim = calc_clim_harmonic(ts, n=n)
 
     pentads = np.floor((clim.index.values - 1) / 5.)
     clim = clim.groupby(pentads,axis=0).mean()
@@ -25,10 +23,10 @@ def calc_clim_p(ts, n):
     return clim
 
 def run():
-    froot = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling"
+    froot = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_cal_unscaled\obs_scaling"
     fbase = '7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_'
 
-    io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS_noDA_unscaled')
+    io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS_noDA_cal_unscaled')
     grid = EASE2()
     dtype = template_scaling()[0]
     n = 3

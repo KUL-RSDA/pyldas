@@ -55,8 +55,6 @@ class paths(object):
 
         self.exp_root = os.path.join(self.root,exp,'output',domain)
 
-        self.scalefile_root = os.path.join(self.root,exp,'obs_scaling')
-
         self.ana = os.path.join(self.exp_root,'ana')
         self.cat = os.path.join(self.exp_root,'cat')
         self.rc_out = os.path.join(self.exp_root,'rc_out')

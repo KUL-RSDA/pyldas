@@ -3,8 +3,6 @@ import numpy as np
 
 from ease_grid.ease2_grid import EASE2_grid
 
-from pyldas.readers import LDAS_io
-
 class EASE2(EASE2_grid):
     """
     Class that contains EASE2 grid parameters and LDAS specific
@@ -16,9 +14,10 @@ class EASE2(EASE2_grid):
         Gridcell resolution [km]
     map_scale : float
         The exact map scale [km]
-    tileinfo_path : string
-        Path for non-default tile grid definitions
-        (i.e., for specific experiments/domains)
+    tilecoord : pd.DataFrame
+        Metadata information for the tile coordinates of a particular LDAS experiment
+    tilegrids : pd.DataFrame
+        Metadata information for the tile grids of a particular LDAS experiment
 
     Attributes
     ----------
@@ -33,7 +32,11 @@ class EASE2(EASE2_grid):
 
     """
 
-    def __init__(self, res=36, map_scale=None, exp=None, domain=None):
+    def __init__(self,
+                 res=36,
+                 map_scale=None,
+                 tilecoord=None,
+                 tilegrids=None):
 
         res *= 1000
 
@@ -51,9 +54,8 @@ class EASE2(EASE2_grid):
         else:
             map_scale *= 1000
 
-        io = LDAS_io(exp=exp, domain=domain)
-        self.tilecoord = io.tilecoord
-        self.tilegrids = io.tilegrids
+        self.tilecoord = tilecoord
+        self.tilegrids = tilegrids
 
         super(EASE2, self).__init__(res, map_scale=map_scale)
 
@@ -71,16 +73,24 @@ class EASE2(EASE2_grid):
 
         return col, row
 
-    def colrow2lonlat(self, col, row):
+    def colrow2lonlat(self, col, row, glob=True):
         """ Convert col/row (domain-based) into lon/lat """
-        return self.londim[col], self.latdim[row]
+        if glob is True:
+            return self.londim[col], self.latdim[row]
+        else:
+            return self.londim[col+self.tilegrids.loc['domain','i_offg']], self.latdim[row+self.tilegrids.loc['domain','j_offg']]
 
-    def lonlat2colrow(self, lon, lat):
+    def lonlat2colrow(self, lon, lat, domain=True):
         """ Find nearest GLOBAL tile (col/row) from any given lon/lat """
         londif = np.abs(self.londim - lon)
         latdif = np.abs(self.latdim - lat)
         col = np.where(np.abs(londif-londif.min())<0.0001)[0][0]
         row = np.where(np.abs(latdif-latdif.min())<0.0001)[0][0]
+
+        if domain is True:
+            col -= self.tilegrids.loc['domain','i_offg']
+            row -= self.tilegrids.loc['domain','j_offg']
+
         return col, row
 
     def lonlat2tilenum(self, lon, lat):
