@@ -73,7 +73,7 @@ def template_catparam():
                       ('bee', '>f4'),
                       ('wpwet', '>f4'),
                       ('gnu', '>f4'),
-                      ('vgmax', '>f4'),
+                      ('vgwmax', '>f4'),
                       ('vegcls', '>i4'),
                       ('soilcls30', '>i4'),
                       ('soilcls100', '>i4'),

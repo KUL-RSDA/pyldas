@@ -10,13 +10,13 @@ from mpl_toolkits.basemap import Basemap
 
 from pyldas.interface import LDAS_io
 
-from myprojects.timeseries import calc_clim, calc_pentadal_mean
+from myprojects.timeseries import calc_clim_harmonic, calc_pentadal_mean
 
 def plot_scaling_parameters():
 
     # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\obs_scaling_old\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
     # fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\pentadal_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
-    fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_unscaled\obs_scaling\harmonic_mean\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
+    fname = r"C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS\US_M36_SMOS_noDA_cal_unscaled\obs_scaling\7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_A_p38.bin"
 
     io = LDAS_io('scale')
 
@@ -161,4 +161,4 @@ def plot_Tb_clims():
     plt.show()
 
 if __name__=='__main__':
-    plot_Tb_clims()
+    plot_scaling_parameters()

@@ -6,6 +6,8 @@ import pandas as pd
 
 from collections import OrderedDict
 
+from scipy.stats import pearsonr
+
 from pyldas.interface import LDAS_io
 from myprojects.readers.insitu import ISMN_io
 
@@ -38,21 +40,24 @@ def ncfile_init(fname, lats, lons, runs, species, tags):
 
 def filter_diagnostics_evaluation():
 
-    result_file = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics\filter_diagnostics.nc'
+    result_file = r'D:\work\LDAS\2018-02_scaling\diagnostics\filter_diagnostics.nc'
 
     no_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_noDA_unscaled')
-    ref_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_scaled')
-    harm_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_harmonic')
-    pent_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    cal_pent_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_scaled')
+    cal_harm_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_harmonic')
+    uncal_pent_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    uncal_harm_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_harmonic')
 
-    ref_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_scaled')
-    harm_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_harmonic')
-    pent_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    cal_pent_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_scaled')
+    cal_harm_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_harmonic')
+    uncal_pent_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    uncal_harm_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_harmonic')
 
     runs = OrderedDict([(1,[no_DA_innov.timeseries]),
-                        (2,[ref_DA_innov.timeseries, ref_DA_incr.timeseries]),
-                        (3,[pent_DA_innov.timeseries, pent_DA_incr.timeseries]),
-                        (4,[harm_DA_innov.timeseries, harm_DA_incr.timeseries])])
+                        (2,[cal_pent_DA_innov.timeseries, cal_pent_DA_incr.timeseries]),
+                        (3,[cal_harm_DA_innov.timeseries, cal_harm_DA_incr.timeseries]),
+                        (4,[uncal_pent_DA_innov.timeseries, uncal_pent_DA_incr.timeseries]),
+                        (5,[uncal_harm_DA_innov.timeseries, uncal_harm_DA_incr.timeseries])])
 
     tags = ['innov_mean','innov_var',
             'norm_innov_mean','norm_innov_var',
@@ -101,23 +106,24 @@ def filter_diagnostics_evaluation():
 
 def insitu_evaluation():
 
-    result_file = r'C:\Users\u0116961\Documents\work\ldas_diagnostics\2018-02_ismn_eval\validation.csv'
+    result_file = r'D:\work\LDAS\2018-02_scaling\_new\ismn_eval\validation.csv'
 
     no_DA = LDAS_io('xhourly','US_M36_SMOS_noDA_unscaled')
-    ref_DA = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_scaled')
-    harm_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_harmonic')
-    pent_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    cal_pent_DA = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_scaled')
+    cal_harm_DA = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_harmonic')
+    uncal_pent_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_pentadal')
+    uncal_harm_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_harmonic')
 
     ismn = ISMN_io(col_offs=no_DA.tilegrids.loc['domain','i_offg'],
                    row_offs=no_DA.tilegrids.loc['domain','j_offg'])
 
-    runs = ['OL','DA_ref','DA_pent','DA_harm']
-    tss = [no_DA.timeseries, ref_DA.timeseries, harm_DA.timeseries, pent_DA.timeseries]
+    runs = ['OL', 'DA_cal_pent','DA_cal_harm','DA_uncal_pent', 'DA_uncal_harm']
+    tss = [no_DA.timeseries, cal_pent_DA.timeseries, cal_harm_DA.timeseries, uncal_pent_DA.timeseries, uncal_harm_DA.timeseries]
 
     variables = ['sm_surface','sm_rootzone','sm_profile']
     modes = ['mean','ma','harmonic']
 
-    ismn.list = ismn.list.iloc[280::]
+    # ismn.list = ismn.list.iloc[280::]
     i = 0
     for meta, ts_insitu in ismn.iter_stations():
 
@@ -143,7 +149,10 @@ def insitu_evaluation():
 
                     ts_mod = calc_anomaly(ts_mod,mode).dropna()
 
-                    res['corr_' + run +'_' + mode + '_' + var] = ts_ref.corr(ts_mod)
+                    tmp = pd.DataFrame({1: ts_ref, 2: ts_mod}).dropna()
+                    r,p = pearsonr(tmp[1],tmp[2])
+
+                    res['corr_' + run +'_' + mode + '_' + var] = r if (r > 0) & (p < 0.01) else np.nan
                     res['ubrmsd_' + run +'_' + mode + '_' + var] = np.sqrt(((ts_ref-ts_mod)**2).mean())
 
 
@@ -153,4 +162,4 @@ def insitu_evaluation():
             res.to_csv(result_file, float_format='%0.4f', mode='a', header=False)
 
 if __name__=='__main__':
-    filter_diagnostics_evaluation()
+    insitu_evaluation()

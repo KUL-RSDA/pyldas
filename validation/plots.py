@@ -9,14 +9,73 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
 from pyldas.interface import LDAS_io
+from myprojects.readers.insitu import ISMN_io
+from myprojects.timeseries import calc_anomaly
+
+def plot_cat_timeseries():
+
+    outpath = r'D:\work\LDAS\2018-02_scaling\ismn_eval\timeseries'
+
+    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\validation_masked.csv"
+    res = pd.read_csv(fname)
+
+    diff_srf = res['corr_DA_ref_ma_sm_surface'] - res['corr_DA_pent_ma_sm_surface']
+    diff_rz = res['corr_DA_ref_ma_sm_rootzone'] - res['corr_DA_pent_ma_sm_rootzone']
+    diff_prof = res['corr_DA_ref_ma_sm_profile'] - res['corr_DA_pent_ma_sm_profile']
+    ind = (diff_srf > 0.2) | (diff_rz > 0.2) | (diff_prof > 0.2)
+    res = res.loc[ind,['network','station','lat', 'lon']]
+
+    ismn = ISMN_io()
+    cal = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_scaled')
+    uncal = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_pentadal')
+
+    variables = ['sm_surface','sm_rootzone','sm_profile']
+
+    for idx,stat in res.iterrows():
+
+        fname = os.path.join(outpath,stat.network+'_'+stat.station+'.png')
+
+        ts_ismn = ismn.read(stat.network,stat.station)
+        lat = stat.lat
+        lon = stat.lon
+
+        plt.figure(figsize=(17,9))
+
+        for i,var in enumerate(variables):
+
+            ax = plt.subplot(3,1,i+1)
+
+            ts_cal = calc_anomaly(cal.read_ts(var, lon, lat),method='ma')
+            ts_cal.index += pd.to_timedelta('2 hours')
+            ts_uncal = calc_anomaly(uncal.read_ts(var, lon, lat),method='ma')
+            ts_uncal.index += pd.to_timedelta('2 hours')
+
+            df = pd.DataFrame({'cal' : ts_cal,'uncal' : ts_uncal, 'insitu': calc_anomaly(ts_ismn[var],method='ma')}).dropna()
+            if len(df) > 0:
+                df.plot(ax=ax)
+            else:
+                continue
+
+            title = 'R(ismn - cal) = %.2f , R(ismn - uncal) = %.2f' % (df.corr().loc['insitu','cal'], df.corr().loc['insitu','uncal'])
+
+            ax.set_title(title,fontsize=12)
+            ax.set_xlim('2010-01-01','2016-01-01')
+            ax.set_ylim(-0.3,0.3)
+            ax.set_xlabel('')
+
+        plt.tight_layout()
+
+        plt.savefig(fname, dpi=150)
+        plt.close()
+
 
 def plot_P_R_estimates():
 
-    exp = 'US_M36_SMOS_DA_calibrated_scaled'
+    exp = 'US_M36_SMOS_DA_nocal_scaled_pentadal'
 
     io = LDAS_io('ObsFcstAna',exp)
 
-    outpath = r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics\uncertainty_estimates"
+    outpath = r"D:\work\LDAS\2018-02_scaling\uncertainty_estimates"
 
     lons = io.timeseries.lon.values
     lats = io.timeseries.lat.values
@@ -38,8 +97,7 @@ def plot_P_R_estimates():
         R_est = ((io.timeseries['obs_obs'][spc, :, :, :] - io.timeseries['obs_fcst'][spc, :, :, :]) *
                  (io.timeseries['obs_obs'][spc, :, :, :] - io.timeseries['obs_ana'][spc, :, :, :])).mean(dim='time')
 
-        P_est = ((io.timeseries['obs_obs'][spc, :, :, :] - io.timeseries['obs_fcst'][spc, :, :, :]) *
-                 (io.timeseries['obs_ana'][spc, :, :, :] - io.timeseries['obs_fcst'][spc, :, :, :])).mean(dim='time')
+        P_est = ((io.timeseries['obs_obs'][spc, :, :, :] - io.timeseries['obs_fcst'][spc, :, :, :]) * (io.timeseries['obs_ana'][spc, :, :, :] - io.timeseries['obs_fcst'][spc, :, :, :])).mean(dim='time')
 
         f = plt.figure(figsize=(16, 5))
 
@@ -83,9 +141,9 @@ def plot_P_R_estimates():
 
 def plot_filter_innov_diff():
 
-    ds = xr.open_dataset(r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics\filter_diagnostics.nc")
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\filter_diagnostics.nc")
 
-    # outpath = r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics"
+    # outpath = r"D:\work\LDAS\2018-02_scaling\diagnostics"
 
     lons = ds.lon.values
     lats = ds.lat.values
@@ -258,10 +316,10 @@ def plot_filter_increments(mode='image', var='srfexc'):
 
 
 
-def plot_filter_diagnostics(mode='image',spc_mean=True):
+def plot_filter_diagnostics(mode='hist',spc_mean=True):
 
-    ds = xr.open_dataset(r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics\filter_diagnostics.nc")
-    outpath = r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics"
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\filter_diagnostics.nc")
+    outpath = r"D:\work\LDAS\2018-02_scaling\diagnostics"
 
     lons = ds.lon.values
     lats = ds.lat.values
@@ -273,35 +331,35 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
 
         if mode == 'hist':
 
-            imgs = [ds['innov_mean'][:, :, 1, :].values,
-                    ds['innov_mean'][:, :, 2, :].values,
-                    ds['innov_mean'][:, :, 3, :].values,
-                    ds['innov_var'][:, :, 1, :].values,
-                    ds['innov_var'][:, :, 2, :].values,
-                    ds['innov_var'][:, :, 3, :].values]
+            imgs = [ds['norm_innov_mean'][:, :, 1, :].values,
+                    ds['norm_innov_mean'][:, :, 2, :].values,
+                    ds['norm_innov_mean'][:, :, 3, :].values,
+                    ds['norm_innov_var'][:, :, 1, :].values,
+                    ds['norm_innov_var'][:, :, 2, :].values,
+                    ds['norm_innov_var'][:, :, 3, :].values]
 
         else:
 
-            imgs = [ds['innov_mean'][:, :, 1, :].mean(dim='species').values,
-                    ds['innov_mean'][:, :, 2, :].mean(dim='species').values,
-                    ds['innov_mean'][:, :, 3, :].mean(dim='species').values,
-                    ds['innov_var'][:, :, 1, :].mean(dim='species').values,
-                    ds['innov_var'][:, :, 2, :].mean(dim='species').values,
-                    ds['innov_var'][:, :, 3, :].mean(dim='species').values]
+            imgs = [ds['norm_innov_mean'][:, :, 1, :].mean(dim='species').values,
+                    ds['norm_innov_mean'][:, :, 2, :].mean(dim='species').values,
+                    ds['norm_innov_mean'][:, :, 3, :].mean(dim='species').values,
+                    ds['norm_innov_var'][:, :, 1, :].mean(dim='species').values,
+                    ds['norm_innov_var'][:, :, 2, :].mean(dim='species').values,
+                    ds['norm_innov_var'][:, :, 3, :].mean(dim='species').values]
 
-    names = ['innov mean (ref)',
-             'innov mean (pentadal)',
-             'innov mean (harmonic)',
-             'innov var (ref)',
-             'innov var (pentadal)',
-             'innov var (harmonic)']
+    names = ['Norm. innov mean (cal. pentadal)',
+             'Norm. innov mean (cal. harmonic)',
+             'Norm. innov mean (uncal pentadal)',
+             'Norm. innov var (cal. pentadal)',
+             'Norm. innov var (cal. harmonic)',
+             'Norm. innov var (uncal pentadal)']
 
     llcrnrlat = 24
     urcrnrlat = 51
     llcrnrlon = -128
     urcrnrlon = -64
 
-    cmap = 'jet'
+    cmap = 'RdYlBu'
 
     fontsize = 16
 
@@ -323,16 +381,18 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
         for img,name in zip(imgs,names):
             i += 1
 
-            perc = np.nanpercentile(img, [1,99])
+            # perc = np.nanpercentile(img, [1,99])
+            #
+            # np.place(img,(img<perc[0])|(img>perc[1]),np.nan)
 
-            np.place(img,(img<perc[0])|(img>perc[1]),np.nan)
-            img = img.reshape(lons.shape)
 
             ax = plt.subplot(2,3,i)
 
             if mode == 'image':
 
-                cbrange = (-1.5, 1.5) if name.find('mean') != -1 else (0,100)
+                img = img.reshape(lons.shape)
+
+                cbrange = (-0.6, 0.6) if name.find('mean') != -1 else (-1,3)
 
                 m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon,
                             urcrnrlon=urcrnrlon,
@@ -356,11 +416,11 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
             elif mode == 'hist':
 
                 if name.find('mean') != -1:
-                    cbrange = (-1.8, 1.8)
-                    ylim=(0,1)
-                else :
-                    cbrange = (10,60)
-                    ylim=(0,0.05)
+                    cbrange = (-0.5, 0.5)
+                    ylim=(0,8)
+                else:
+                    cbrange = (0.2,2.2)
+                    ylim=(0,2)
 
                 pd.Series(img.flatten()).dropna().hist(bins=30, range=cbrange, density=True, ax=ax)
                 ax.set_ylim(ylim)
@@ -387,7 +447,7 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
 def spatial_plot_ismn_stats():
     fname = r"C:\Users\u0116961\Documents\work\ldas_ismn_eval\2018-02_scaling\validation_masked.csv"
 
-    res = pd.DataFrame.from_csv(fname)
+    res = pd.read_csv(fname)
 
     lats = res['lat'].values
     lons = res['lon'].values
@@ -480,21 +540,21 @@ def spatial_plot_ismn_stats():
     plt.show()
 
 def plot_ismn_statistics():
-    fname = r"C:\Users\u0116961\Documents\work\ldas_ismn_eval\2018-02_scaling\validation_masked.csv"
+    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\validation.csv"
 
-    res = pd.DataFrame.from_csv(fname)
+    res = pd.read_csv(fname)
 
     # variables = ['sm_surface','sm_rootzone','sm_profile']
     modes = ['mean','ma','harmonic']
-    runs = ['OL','DA_ref','DA_pent','DA_harm']
+    runs = ['OL','DA_cal_harm','DA_cal_pent','DA_uncal_pent']
 
     # networks = np.unique(res.network)
-    networks = ['SCAN','USCRN']
-    res.index = res.network
-    res = res.loc[networks,:]
-    title = ','.join(networks)
+    # networks = ['SCAN','USCRN']
+    # res.index = res.network
+    # res = res.loc[networks,:]
+    # title = ','.join(networks)
+    title = 'all networks'
 
-    # title = 'all networks'
     r_title = 'R (rsm) '+ title
     ubrmsd_title = 'ubRMSD (rsm) '+ title
     var = 'sm_rootzone'
@@ -576,4 +636,4 @@ def plot_ismn_statistics():
     plt.show()
 
 if __name__=='__main__':
-    plot_P_R_estimates()
+    plot_cat_timeseries()

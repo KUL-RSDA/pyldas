@@ -83,8 +83,8 @@ class LDAS_io(object):
                 self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
 
                 # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
-                if self.param == 'xhourly':
-                    self.dates += pd.to_timedelta('2 hours')
+                # if self.param == 'xhourly':
+                    # self.dates += pd.to_timedelta('2 hours')
 
                 self.dtype, self.hdr, self.length = get_template(self.param)
 
@@ -350,15 +350,15 @@ class LDAS_io(object):
 
         return img
 
-    def read_ts(self, param, col, row, species=None,lonlat=True):
+    def read_ts(self, param, col, row, species=None, lonlat=True):
 
         if lonlat is True:
             col, row = self.grid.lonlat2colrow(col, row, domain=True)
 
         if species is None:
-            ts = self.timeseries[param][col,row,:].to_series()
+            ts = self.timeseries[param][row,col,:].to_series()
         else:
-            ts = self.timeseries[param].sel(species=species)[col,row,:].to_series()
+            ts = self.timeseries[param].sel(species=species)[row,col,:].to_series()
 
         return ts
 
@@ -507,7 +507,7 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('ObsFcstAna', 'US_M36_SMOS_noDA_cal_unscaled')
+    io = LDAS_io('incr', 'US_M36_SMOS_DA_calibrated_harmonic')
     io.bin2netcdf()
 
 

@@ -40,7 +40,7 @@ class paths(object):
             sys = 'win' if platform.system() == 'Windows' else 'lnx'
             if sys == 'win':
                 # default path for local copies on a windows machine
-                self.root = r'C:\Users\u0116961\Documents\VSC\vsc_data_copies\scratch_TEST_RUNS'
+                self.root = r'D:\data_sets\LDAS_runs'
             else:
                 # default path on the HPC
                 self.root = '/scratch/leuven/320/vsc32046/output/TEST_RUNS'
