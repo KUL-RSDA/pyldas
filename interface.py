@@ -507,8 +507,12 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('incr', 'US_M36_SMOS_DA_calibrated_harmonic')
+    io = LDAS_io('incr', 'US_M36_SMOS_DA_cal_scaled_yearly')
     io.bin2netcdf()
+    # io = LDAS_io('xhourly', 'US_M36_SMOS_DA_cal_scaled_yearly')
+    # io.bin2netcdf()
+    # io = LDAS_io('ObsFcstAna', 'US_M36_SMOS_DA_cal_scaled_yearly')
+    # io.bin2netcdf()
 
 
     # io.read_ts('obs_obs', -113.480529785, 40.691051628, species=1).plot()

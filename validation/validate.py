@@ -40,24 +40,16 @@ def ncfile_init(fname, lats, lons, runs, species, tags):
 
 def filter_diagnostics_evaluation():
 
-    result_file = r'D:\work\LDAS\2018-02_scaling\diagnostics\filter_diagnostics.nc'
+    result_file = r'D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom_pent\filter_diagnostics.nc'
 
-    no_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_noDA_unscaled')
-    cal_pent_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_scaled')
-    cal_harm_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_harmonic')
-    uncal_pent_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_pentadal')
-    uncal_harm_DA_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_nocal_scaled_harmonic')
+    cal_DA_clim_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_scaled')
+    cal_DA_seas_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_cal_scaled_yr_pent')
 
-    cal_pent_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_scaled')
-    cal_harm_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_harmonic')
-    uncal_pent_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_pentadal')
-    uncal_harm_DA_incr = LDAS_io('incr','US_M36_SMOS_DA_nocal_scaled_harmonic')
+    cal_DA_clim_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_scaled')
+    cal_DA_seas_incr = LDAS_io('incr','US_M36_SMOS_DA_cal_scaled_yr_pent')
 
-    runs = OrderedDict([(1,[no_DA_innov.timeseries]),
-                        (2,[cal_pent_DA_innov.timeseries, cal_pent_DA_incr.timeseries]),
-                        (3,[cal_harm_DA_innov.timeseries, cal_harm_DA_incr.timeseries]),
-                        (4,[uncal_pent_DA_innov.timeseries, uncal_pent_DA_incr.timeseries]),
-                        (5,[uncal_harm_DA_innov.timeseries, uncal_harm_DA_incr.timeseries])])
+    runs = OrderedDict([(1,[cal_DA_clim_innov.timeseries, cal_DA_clim_incr.timeseries]),
+                        (2,[cal_DA_seas_innov.timeseries, cal_DA_seas_incr.timeseries])])
 
     tags = ['innov_mean','innov_var',
             'norm_innov_mean','norm_innov_var',
@@ -66,10 +58,10 @@ def filter_diagnostics_evaluation():
             'incr_rzexc_mean','incr_rzexc_var',
             'incr_srfexc_mean','incr_srfexc_var']
 
-    lons = np.unique(no_DA_innov.tilecoord['com_lon'].values)
-    lats = np.unique(no_DA_innov.tilecoord['com_lat'].values)[::-1]
+    lons = np.unique(cal_DA_clim_innov.tilecoord['com_lon'].values)
+    lats = np.unique(cal_DA_clim_innov.tilecoord['com_lat'].values)[::-1]
 
-    species = no_DA_innov.timeseries['species'].values
+    species = cal_DA_clim_innov.timeseries['species'].values
 
     ds = ncfile_init(result_file, lats, lons, runs.keys(), species, tags)
 
@@ -106,22 +98,19 @@ def filter_diagnostics_evaluation():
 
 def insitu_evaluation():
 
-    result_file = r'D:\work\LDAS\2018-02_scaling\_new\ismn_eval\validation.csv'
+    result_file = r'D:\work\LDAS\2018-02_scaling\ismn_eval\shortterm_longerm_anom\validation.csv'
 
-    no_DA = LDAS_io('xhourly','US_M36_SMOS_noDA_unscaled')
-    cal_pent_DA = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_scaled')
-    cal_harm_DA = LDAS_io('xhourly','US_M36_SMOS_DA_calibrated_harmonic')
-    uncal_pent_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_pentadal')
-    uncal_harm_DA = LDAS_io('xhourly','US_M36_SMOS_DA_nocal_scaled_harmonic')
+    cal_DA_clim = LDAS_io('xhourly', 'US_M36_SMOS_DA_calibrated_harmonic')
+    cal_DA_seas = LDAS_io('xhourly', 'US_M36_SMOS_DA_cal_scaled_yearly')
 
-    ismn = ISMN_io(col_offs=no_DA.tilegrids.loc['domain','i_offg'],
-                   row_offs=no_DA.tilegrids.loc['domain','j_offg'])
+    ismn = ISMN_io(col_offs=cal_DA_clim.tilegrids.loc['domain','i_offg'],
+                   row_offs=cal_DA_clim.tilegrids.loc['domain','j_offg'])
 
-    runs = ['OL', 'DA_cal_pent','DA_cal_harm','DA_uncal_pent', 'DA_uncal_harm']
-    tss = [no_DA.timeseries, cal_pent_DA.timeseries, cal_harm_DA.timeseries, uncal_pent_DA.timeseries, uncal_harm_DA.timeseries]
+    runs = ['DA_cal_clim_removed', 'DA_cal_seas_removed']
+    tss = [cal_DA_clim.timeseries, cal_DA_seas.timeseries]
 
     variables = ['sm_surface','sm_rootzone','sm_profile']
-    modes = ['mean','ma','harmonic']
+    modes = ['mean','longterm','shortterm']
 
     # ismn.list = ismn.list.iloc[280::]
     i = 0
@@ -137,7 +126,11 @@ def insitu_evaluation():
         for var in variables:
             for mode in modes:
 
-                ts_ref = calc_anomaly(ts_insitu[var],mode).dropna()
+                if mode == 'mean':
+                    ts_ref = calc_anomaly(ts_insitu[var], mode).dropna()
+                else:
+                    ts_ref = calc_anomaly(ts_insitu[var], method='harmonic', longterm=mode == 'longterm').dropna()
+
                 res['len_' + mode + '_' + var] = len(ts_ref)
 
                 for run,ts_model in zip(runs,tss):
@@ -147,7 +140,10 @@ def insitu_evaluation():
                     ts_mod.index += pd.to_timedelta('2 hours')
                     # TODO: Make sure that time of netcdf file is correct!!
 
-                    ts_mod = calc_anomaly(ts_mod,mode).dropna()
+                    if mode == 'mean':
+                        ts_mod = calc_anomaly(ts_mod, mode).dropna()
+                    else:
+                        ts_mod = calc_anomaly(ts_mod, method='harmonic', longterm=mode=='longterm').dropna()
 
                     tmp = pd.DataFrame({1: ts_ref, 2: ts_mod}).dropna()
                     r,p = pearsonr(tmp[1],tmp[2])

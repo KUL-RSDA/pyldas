@@ -12,16 +12,91 @@ from pyldas.interface import LDAS_io
 from myprojects.readers.insitu import ISMN_io
 from myprojects.timeseries import calc_anomaly
 
+from scipy.stats import pearsonr, spearmanr
+
+def scatterplot_RTMparam_incr_innov_diff():
+
+    outpath = r'D:\work\LDAS\2018-02_scaling\_new\diagnostics'
+
+    diag = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\_new\diagnostics\filter_diagnostics.nc")
+
+    params_cal = LDAS_io(exp='US_M36_SMOS_DA_calibrated_scaled').read_params('RTMparam')
+    params_uncal = LDAS_io(exp='US_M36_SMOS_DA_nocal_scaled_harmonic').read_params('RTMparam')
+
+    tc = LDAS_io().tilecoord
+    tg = LDAS_io().tilegrids
+
+    tc.i_indg -= tg.loc['domain', 'i_offg']  # col / lon
+    tc.j_indg -= tg.loc['domain', 'j_offg']  # row / lat
+
+    ind_lon,ind_lat = tc.i_indg.values, tc.j_indg.values
+
+    ind_cal = 1
+    ind_uncal = 3
+
+    fontsize = 20
+
+    incin = 'incr_'
+    mv = 'mean'
+
+    modes = ['catdef_','srfexc_','rzexc_']
+    params = ['bh','bv','omega','rgh_hmin','rgh_hmax']
+
+
+    plt.figure(figsize=(18,9))
+
+    i=0
+    for r,mode in enumerate(modes):
+        for c,param in enumerate(params):
+            i += 1
+            ax = plt.subplot(3,5,i)
+
+            # xdiff = (params_cal[param] - params_uncal[param]).values
+            # ydiff = diag[incin+mode+mv][:,:,ind_cal].values[ind_lat,ind_lon] - diag[incin+mode+mv][:,:,ind_uncal].values[ind_lat,ind_lon]
+
+            xdiff = params_uncal[param].values
+            ydiff = diag[incin+mode+mv][:,:,ind_uncal].values[ind_lat,ind_lon]
+
+            ind_valid = (~np.isnan(xdiff))&(~np.isnan(ydiff))
+
+            xdiff = xdiff[ind_valid]
+            ydiff = ydiff[ind_valid]
+
+            s = np.argsort(xdiff)
+            xdiff = xdiff[s]
+            ydiff = ydiff[s]
+
+            ax.plot(xdiff,ydiff,'o',markersize=3,markerfacecolor='k',markeredgecolor='k')
+
+            fit = np.polyfit(xdiff, ydiff, deg=2)
+
+            ax.plot(xdiff, fit[0] * xdiff**2 + fit[1] * xdiff + fit[2], color='red')
+
+            if param == 'bh':
+                ax.set_ylabel(mode[0:-1])
+            if mode == 'rzexc_':
+                ax.set_xlabel(param)
+
+            corr = pearsonr(xdiff,ydiff)[0]
+            rho = spearmanr(xdiff,ydiff)[0]
+
+            ax.set_title('R = %.2f, $\\rho$ = %.2f' % (corr,rho))
+
+
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_cat_timeseries():
 
-    outpath = r'D:\work\LDAS\2018-02_scaling\ismn_eval\timeseries'
+    outpath = r'D:\work\LDAS\2018-02_scaling\_new\ismn_eval\timeseries'
 
-    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\validation_masked.csv"
+    fname = r"D:\work\LDAS\2018-02_scaling\_new\ismn_eval\validation.csv"
     res = pd.read_csv(fname)
 
-    diff_srf = res['corr_DA_ref_ma_sm_surface'] - res['corr_DA_pent_ma_sm_surface']
-    diff_rz = res['corr_DA_ref_ma_sm_rootzone'] - res['corr_DA_pent_ma_sm_rootzone']
-    diff_prof = res['corr_DA_ref_ma_sm_profile'] - res['corr_DA_pent_ma_sm_profile']
+    diff_srf = res['corr_DA_cal_pent_ma_sm_surface'] - res['corr_DA_uncal_pent_ma_sm_surface']
+    diff_rz = res['corr_DA_cal_pent_ma_sm_rootzone'] - res['corr_DA_uncal_pent_ma_sm_rootzone']
+    diff_prof = res['corr_DA_cal_pent_ma_sm_profile'] - res['corr_DA_uncal_pent_ma_sm_profile']
     ind = (diff_srf > 0.2) | (diff_rz > 0.2) | (diff_prof > 0.2)
     res = res.loc[ind,['network','station','lat', 'lon']]
 
@@ -223,30 +298,26 @@ def plot_filter_innov_diff():
     plt.show()
 
 
-def plot_filter_increments(mode='image', var='srfexc'):
+def plot_filter_increments(mode='hist', var='srfexc'):
 
-    ds = xr.open_dataset(r"C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\diagnostics\filter_diagnostics.nc")
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom\filter_diagnostics.nc")
 
     lons = ds.lon.values
     lats = ds.lat.values
 
     lons,lats = np.meshgrid(lons,lats)
 
-    imgs = [ds['incr_'+var+'_mean'][:, :, 1].values,
-            ds['incr_'+var+'_mean'][:, :, 2].values,
-            ds['incr_'+var+'_mean'][:, :, 3].values,
-            ds['incr_'+var+'_var'][:, :, 1].values,
-            ds['incr_'+var+'_var'][:, :, 2].values,
-            ds['incr_'+var+'_var'][:, :, 3].values]
+    imgs = [ds['incr_'+var+'_mean'][:, :, 0].values,
+            ds['incr_'+var+'_mean'][:, :, 1].values,
+            ds['incr_'+var+'_var'][:, :, 0].values,
+            ds['incr_'+var+'_var'][:, :, 1].values]
 
-    names = [var + ' mean (ref)',
-             var + ' mean (pentadal)',
-             var + ' mean (harmonic)',
-             var + ' var (ref)',
-             var + ' var (pentadal)',
-             var + ' var (harmonic)']
+    names = [var + ' mean (clim removed)',
+             var + ' mean (seas removed)',
+             var + ' var (clim removed)',
+             var + ' var (seas removed)']
 
-    f = plt.figure(figsize=(19,9))
+    f = plt.figure(figsize=(15,9))
 
     llcrnrlat = 24
     urcrnrlat = 51
@@ -265,11 +336,11 @@ def plot_filter_increments(mode='image', var='srfexc'):
 
         np.place(img,(img<perc[0])|(img>perc[1]),np.nan)
 
-        ax = plt.subplot(2,3,i)
+        ax = plt.subplot(2,2,i)
 
         if mode == 'image':
 
-            cbrange = (-0.8, 0.8) if name.find('mean') != -1 else (0,1)
+            cbrange = (-0.8, 0.8) if name.find('mean') != -1 else (0,2)
 
             m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon,
                         urcrnrlon=urcrnrlon,
@@ -316,10 +387,10 @@ def plot_filter_increments(mode='image', var='srfexc'):
 
 
 
-def plot_filter_diagnostics(mode='hist',spc_mean=True):
+def plot_filter_diagnostics(mode='image',spc_mean=True):
 
-    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\filter_diagnostics.nc")
-    outpath = r"D:\work\LDAS\2018-02_scaling\diagnostics"
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom\filter_diagnostics.nc")
+    outpath = r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom"
 
     lons = ds.lon.values
     lats = ds.lat.values
@@ -331,28 +402,22 @@ def plot_filter_diagnostics(mode='hist',spc_mean=True):
 
         if mode == 'hist':
 
-            imgs = [ds['norm_innov_mean'][:, :, 1, :].values,
-                    ds['norm_innov_mean'][:, :, 2, :].values,
-                    ds['norm_innov_mean'][:, :, 3, :].values,
-                    ds['norm_innov_var'][:, :, 1, :].values,
-                    ds['norm_innov_var'][:, :, 2, :].values,
-                    ds['norm_innov_var'][:, :, 3, :].values]
+            imgs = [ds['norm_innov_mean'][:, :, 0, :].values,
+                    ds['norm_innov_mean'][:, :, 1, :].values,
+                    ds['norm_innov_var'][:, :, 0, :].values,
+                    ds['norm_innov_var'][:, :, 1, :].values]
 
         else:
 
-            imgs = [ds['norm_innov_mean'][:, :, 1, :].mean(dim='species').values,
-                    ds['norm_innov_mean'][:, :, 2, :].mean(dim='species').values,
-                    ds['norm_innov_mean'][:, :, 3, :].mean(dim='species').values,
-                    ds['norm_innov_var'][:, :, 1, :].mean(dim='species').values,
-                    ds['norm_innov_var'][:, :, 2, :].mean(dim='species').values,
-                    ds['norm_innov_var'][:, :, 3, :].mean(dim='species').values]
+            imgs = [ds['norm_innov_mean'][:, :, 0, :].mean(dim='species').values,
+                    ds['norm_innov_mean'][:, :, 1, :].mean(dim='species').values,
+                    ds['norm_innov_var'][:, :, 0, :].mean(dim='species').values,
+                    ds['norm_innov_var'][:, :, 1, :].mean(dim='species').values]
 
-    names = ['Norm. innov mean (cal. pentadal)',
-             'Norm. innov mean (cal. harmonic)',
-             'Norm. innov mean (uncal pentadal)',
-             'Norm. innov var (cal. pentadal)',
-             'Norm. innov var (cal. harmonic)',
-             'Norm. innov var (uncal pentadal)']
+    names = ['Norm. innov mean (clim removed)',
+             'Norm. innov mean (seas removed)',
+             'Norm. innov var (clim removed)',
+             'Norm. innov var (seas removed)']
 
     llcrnrlat = 24
     urcrnrlat = 51
@@ -368,14 +433,12 @@ def plot_filter_diagnostics(mode='hist',spc_mean=True):
     for j in np.arange(n_spc):
 
         if spc_mean is False:
-            imgs = [ds['norm_innov_mean'][:, :, 1, j].values,
-                    ds['norm_innov_mean'][:, :, 2, j].values,
-                    ds['norm_innov_mean'][:, :, 3, j].values,
-                    ds['norm_innov_var'][:, :, 1, j].values,
-                    ds['norm_innov_var'][:, :, 2, j].values,
-                    ds['norm_innov_var'][:, :, 3, j].values]
+            imgs = [ds['norm_innov_mean'][:, :, 0, j].values,
+                    ds['norm_innov_mean'][:, :, 1, j].values,
+                    ds['norm_innov_var'][:, :, 0, j].values,
+                    ds['norm_innov_var'][:, :, 1, j].values]
 
-        f = plt.figure(figsize=(19,9))
+        f = plt.figure(figsize=(15,9))
 
         i = 0
         for img,name in zip(imgs,names):
@@ -386,7 +449,7 @@ def plot_filter_diagnostics(mode='hist',spc_mean=True):
             # np.place(img,(img<perc[0])|(img>perc[1]),np.nan)
 
 
-            ax = plt.subplot(2,3,i)
+            ax = plt.subplot(2,2,i)
 
             if mode == 'image':
 
@@ -540,15 +603,15 @@ def spatial_plot_ismn_stats():
     plt.show()
 
 def plot_ismn_statistics():
-    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\validation.csv"
+
+    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\shortterm_longerm_anom\validation.csv"
 
     res = pd.read_csv(fname)
 
     # variables = ['sm_surface','sm_rootzone','sm_profile']
-    modes = ['mean','ma','harmonic']
-    runs = ['OL','DA_cal_harm','DA_cal_pent','DA_uncal_pent']
+    modes = ['mean','longterm','shortterm']
+    runs = ['DA_cal_clim_removed','DA_cal_seas_removed']
 
-    # networks = np.unique(res.network)
     # networks = ['SCAN','USCRN']
     # res.index = res.network
     # res = res.loc[networks,:]
@@ -557,12 +620,14 @@ def plot_ismn_statistics():
 
     r_title = 'R (rsm) '+ title
     ubrmsd_title = 'ubRMSD (rsm) '+ title
-    var = 'sm_rootzone'
+    var = 'sm_profile'
 
     plt.figure(figsize=(18,9))
 
-    offsets = [-0.3,-0.1,0.1,0.3]
-    cols = ['lightblue', 'lightgreen', 'coral', 'brown']
+    offsets = [-0.1,0.1]
+    cols = ['lightblue', 'lightgreen']
+    # offsets = [-0.3,-0.1,0.1,0.3]
+    # cols = ['lightblue', 'lightgreen', 'coral', 'brown']
     fontsize=12
 
     ax = plt.subplot(211)
@@ -636,4 +701,4 @@ def plot_ismn_statistics():
     plt.show()
 
 if __name__=='__main__':
-    plot_cat_timeseries()
+    plot_ismn_statistics()
