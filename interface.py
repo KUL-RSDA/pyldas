@@ -103,7 +103,7 @@ class LDAS_io(object):
 
         lines = fp.readlines()[1::]
 
-        n_fields = 30
+        n_fields = 32
         n_blocks = len(lines) / n_fields
 
         res = []
@@ -132,12 +132,14 @@ class LDAS_io(object):
                         'scalepath': s(lines[bl + 21]),
                         'scalename': s(lines[bl + 22]),
                         'errstd': float(lines[bl + 23]),
-                        'std_normal_max': float(lines[bl + 24]),
-                        'zeromean': b(lines[bl + 25]),
-                        'coarsen_pert': b(lines[bl + 26]),
-                        'xcorr': float(lines[bl + 27]),
-                        'ycorr': float(lines[bl + 28]),
-                        'adapt': int(lines[bl + 29])})
+                        'errstd_file': b(lines[bl + 24]),
+                        'path_errstd': s(lines[bl + 25]),
+                        'std_normal_max': float(lines[bl + 26]),
+                        'zeromean': b(lines[bl + 27]),
+                        'coarsen_pert': b(lines[bl + 28]),
+                        'xcorr': float(lines[bl + 29]),
+                        'ycorr': float(lines[bl + 30]),
+                        'adapt': int(lines[bl + 31])})
 
         return pd.DataFrame(res)
 

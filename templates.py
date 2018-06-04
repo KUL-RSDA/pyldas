@@ -37,6 +37,9 @@ def get_template(param):
     elif param == 'scaling':
         dtype, hdr, length = template_scaling()
 
+    elif param == 'error':
+        dtype, hdr, length = template_error_Tb40()
+
     elif param == 'RTMparam':
         dtype, hdr, length = template_RTMparam()
 
@@ -169,6 +172,21 @@ def template_incr_rstrt():
                       ('sndz1', '>f4'),
                       ('sndz2', '>f4'),
                       ('sndz3', '>f4')])
+
+    return dtype, hdr, length
+
+def template_error_Tb40():
+    """ Template for reading uncertainty files. """
+
+    # 23 header fields + 1 incidence angles (normalized to 40 degrees)
+    # TODO: allow for a different number of inc. angles when using for SMAP (# angles on hdr pos 20)
+    hdr = 25
+    length = 19
+
+    dtype = np.dtype([('lon', '>f4'),
+                      ('lat', '>f4'),
+                      ('err_Tbh', '>f4'),
+                      ('err_Tbv', '>f4')])
 
     return dtype, hdr, length
 
