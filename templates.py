@@ -31,7 +31,7 @@ def get_template(param):
     elif param == 'ObsFcstAna':
         dtype, hdr, length = template_ObsFcstAna()
 
-    elif param == 'xhourly':
+    elif (param == 'xhourly')|(param=='ensstd'):
         dtype, hdr, length = template_xhourly()
 
     elif param == 'scaling':
@@ -289,7 +289,6 @@ def template_xhourly():
     TODO Include the possibility to specify the Collection ID. Currently: 8 / tavg
 
     """
-
 
     hdr = None
     length = None

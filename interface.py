@@ -76,11 +76,16 @@ class LDAS_io(object):
         self.param = param
         if param is not None:
 
-            self.files = find_files(self.paths.__getattribute__('exp_root'), param)
+            if param == 'xhourly':
+                path = self.paths.__getattribute__('cat')
+            else:
+                path = self.paths.__getattribute__('exp_root')
+
+            self.files = find_files(path, param)
 
             if self.files[0].find('images.nc') == -1:
                 print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
-                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M').sort_values()
 
                 # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
                 # if self.param == 'xhourly':
@@ -544,8 +549,10 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('incr', 'US_M36_SMOS_DA_cal_scaled_yearly')
+    io = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scl_errfile_w_std')
     io.bin2netcdf()
+    # io = LDAS_io('incr', 'US_M36_SMOS_DA_cal_scaled_yearly')
+    # io.bin2netcdf()
     # io = LDAS_io('xhourly', 'US_M36_SMOS_DA_cal_scaled_yearly')
     # io.bin2netcdf()
     # io = LDAS_io('ObsFcstAna', 'US_M36_SMOS_DA_cal_scaled_yearly')
