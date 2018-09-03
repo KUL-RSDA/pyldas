@@ -40,13 +40,13 @@ def ncfile_init(fname, lats, lons, runs, species, tags):
 
 def filter_diagnostics_evaluation():
 
-    result_file = r'D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom_pent\filter_diagnostics.nc'
+    result_file = r'D:\work\LDAS\2018-06_rmse_uncertainty\filter_diagnostics.nc'
 
-    cal_DA_clim_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_calibrated_scaled')
-    cal_DA_seas_innov = LDAS_io('ObsFcstAna','US_M36_SMOS_DA_cal_scaled_yr_pent')
+    cal_DA_clim_innov = LDAS_io('ObsFcstAna','US_M36_SMOS40_DA_cal_scaled')
+    cal_DA_seas_innov = LDAS_io('ObsFcstAna','US_M36_SMOS40_DA_cal_scl_errfile')
 
-    cal_DA_clim_incr = LDAS_io('incr','US_M36_SMOS_DA_calibrated_scaled')
-    cal_DA_seas_incr = LDAS_io('incr','US_M36_SMOS_DA_cal_scaled_yr_pent')
+    cal_DA_clim_incr = LDAS_io('incr','US_M36_SMOS40_DA_cal_scaled')
+    cal_DA_seas_incr = LDAS_io('incr','US_M36_SMOS40_DA_cal_scl_errfile')
 
     runs = OrderedDict([(1,[cal_DA_clim_innov.timeseries, cal_DA_clim_incr.timeseries]),
                         (2,[cal_DA_seas_innov.timeseries, cal_DA_seas_incr.timeseries])])
@@ -98,24 +98,25 @@ def filter_diagnostics_evaluation():
 
 def insitu_evaluation():
 
-    result_file = r'D:\work\LDAS\2018-02_scaling\ismn_eval\shortterm_longerm_anom\validation.csv'
+    result_file = r'D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv'
 
-    cal_DA_clim = LDAS_io('xhourly', 'US_M36_SMOS_DA_calibrated_harmonic')
-    cal_DA_seas = LDAS_io('xhourly', 'US_M36_SMOS_DA_cal_scaled_yearly')
+    noDA = LDAS_io('xhourly', 'US_M36_SMOS40_noDA_cal_scaled')
+    DA_const_err = LDAS_io('xhourly', 'US_M36_SMOS40_DA_cal_scaled')
+    DA_varia_err = LDAS_io('xhourly', 'US_M36_SMOS40_DA_cal_scl_errfile')
 
-    ismn = ISMN_io(col_offs=cal_DA_clim.tilegrids.loc['domain','i_offg'],
-                   row_offs=cal_DA_clim.tilegrids.loc['domain','j_offg'])
+    ismn = ISMN_io(col_offs=noDA.tilegrids.loc['domain','i_offg'],
+                   row_offs=noDA.tilegrids.loc['domain','j_offg'])
 
-    runs = ['DA_cal_clim_removed', 'DA_cal_seas_removed']
-    tss = [cal_DA_clim.timeseries, cal_DA_seas.timeseries]
+    runs = ['noDA', 'DA_const_err','DA_varia_err']
+    tss = [noDA.timeseries, DA_const_err.timeseries, DA_varia_err.timeseries]
 
     variables = ['sm_surface','sm_rootzone','sm_profile']
-    modes = ['mean','longterm','shortterm']
+    modes = ['absolute','longterm','shortterm']
 
-    # ismn.list = ismn.list.iloc[280::]
+    # ismn.list = ismn.list.iloc[101::]
+
     i = 0
     for meta, ts_insitu in ismn.iter_stations():
-
         i += 1
         print '%i/%i' % (i, len(ismn.list))
 
@@ -126,10 +127,12 @@ def insitu_evaluation():
         for var in variables:
             for mode in modes:
 
-                if mode == 'mean':
+                if mode == 'absolute':
+                    ts_ref = ts_insitu[var].dropna()
+                elif mode == 'mean':
                     ts_ref = calc_anomaly(ts_insitu[var], mode).dropna()
                 else:
-                    ts_ref = calc_anomaly(ts_insitu[var], method='harmonic', longterm=mode == 'longterm').dropna()
+                    ts_ref = calc_anomaly(ts_insitu[var], method='moving_average', longterm=(mode=='longterm')).dropna()
 
                 res['len_' + mode + '_' + var] = len(ts_ref)
 
@@ -140,10 +143,10 @@ def insitu_evaluation():
                     ts_mod.index += pd.to_timedelta('2 hours')
                     # TODO: Make sure that time of netcdf file is correct!!
 
-                    if mode == 'mean':
-                        ts_mod = calc_anomaly(ts_mod, mode).dropna()
+                    if mode == 'absolute':
+                        ts_mod = ts_mod.dropna()
                     else:
-                        ts_mod = calc_anomaly(ts_mod, method='harmonic', longterm=mode=='longterm').dropna()
+                        ts_mod = calc_anomaly(ts_mod, method='moving_average', longterm=mode=='longterm').dropna()
 
                     tmp = pd.DataFrame({1: ts_ref, 2: ts_mod}).dropna()
                     r,p = pearsonr(tmp[1],tmp[2])
@@ -158,4 +161,5 @@ def insitu_evaluation():
             res.to_csv(result_file, float_format='%0.4f', mode='a', header=False)
 
 if __name__=='__main__':
+    # filter_diagnostics_evaluation()
     insitu_evaluation()

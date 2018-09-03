@@ -298,9 +298,9 @@ def plot_filter_innov_diff():
     plt.show()
 
 
-def plot_filter_increments(mode='hist', var='srfexc'):
+def plot_filter_increments(mode='image', var='catdef'):
 
-    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom\filter_diagnostics.nc")
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-06_rmse_uncertainty\filter_diagnostics.nc")
 
     lons = ds.lon.values
     lats = ds.lat.values
@@ -312,10 +312,10 @@ def plot_filter_increments(mode='hist', var='srfexc'):
             ds['incr_'+var+'_var'][:, :, 0].values,
             ds['incr_'+var+'_var'][:, :, 1].values]
 
-    names = [var + ' mean (clim removed)',
-             var + ' mean (seas removed)',
-             var + ' var (clim removed)',
-             var + ' var (seas removed)']
+    names = [var + ' mean (constant error)',
+             var + ' mean (variable error)',
+             var + ' var (constant error)',
+             var + ' var (variable error)']
 
     f = plt.figure(figsize=(15,9))
 
@@ -340,7 +340,7 @@ def plot_filter_increments(mode='hist', var='srfexc'):
 
         if mode == 'image':
 
-            cbrange = (-0.8, 0.8) if name.find('mean') != -1 else (0,2)
+            cbrange = (-0.8, 0.8) if name.find('mean') != -1 else (0,100)
 
             m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon,
                         urcrnrlon=urcrnrlon,
@@ -389,8 +389,8 @@ def plot_filter_increments(mode='hist', var='srfexc'):
 
 def plot_filter_diagnostics(mode='image',spc_mean=True):
 
-    ds = xr.open_dataset(r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom\filter_diagnostics.nc")
-    outpath = r"D:\work\LDAS\2018-02_scaling\diagnostics\short_term_long_term_anom"
+    ds = xr.open_dataset(r"D:\work\LDAS\2018-06_rmse_uncertainty\filter_diagnostics.nc")
+    outpath = r"D:\work\LDAS\2018-06_rmse_uncertainty"
 
     lons = ds.lon.values
     lats = ds.lat.values
@@ -414,10 +414,10 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
                     ds['norm_innov_var'][:, :, 0, :].mean(dim='species').values,
                     ds['norm_innov_var'][:, :, 1, :].mean(dim='species').values]
 
-    names = ['Norm. innov mean (clim removed)',
-             'Norm. innov mean (seas removed)',
-             'Norm. innov var (clim removed)',
-             'Norm. innov var (seas removed)']
+    names = ['Norm. innov mean (constant error)',
+             'Norm. innov mean (variable error)',
+             'Norm. innov var (constant error)',
+             'Norm. innov var (variable error)']
 
     llcrnrlat = 24
     urcrnrlat = 51
@@ -455,7 +455,13 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
 
                 img = img.reshape(lons.shape)
 
-                cbrange = (-0.6, 0.6) if name.find('mean') != -1 else (-1,3)
+                if name.find('mean') != -1 :
+                    cbrange = (-0.6, 0.6)
+                else:
+                    if i == 3:
+                        cbrange = (-8, 10)
+                    else:
+                        cbrange = (0, 2)
 
                 m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon,
                             urcrnrlon=urcrnrlon,
@@ -479,10 +485,10 @@ def plot_filter_diagnostics(mode='image',spc_mean=True):
             elif mode == 'hist':
 
                 if name.find('mean') != -1:
-                    cbrange = (-0.5, 0.5)
-                    ylim=(0,8)
+                    cbrange = (-1, 1)
+                    ylim=(0,2)
                 else:
-                    cbrange = (0.2,2.2)
+                    cbrange = (-0.5,2.5)
                     ylim=(0,2)
 
                 pd.Series(img.flatten()).dropna().hist(bins=30, range=cbrange, density=True, ax=ax)
@@ -604,28 +610,28 @@ def spatial_plot_ismn_stats():
 
 def plot_ismn_statistics():
 
-    fname = r"D:\work\LDAS\2018-02_scaling\ismn_eval\shortterm_longerm_anom\validation.csv"
+    fname = r"D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv"
 
     res = pd.read_csv(fname)
 
     # variables = ['sm_surface','sm_rootzone','sm_profile']
-    modes = ['mean','longterm','shortterm']
-    runs = ['DA_cal_clim_removed','DA_cal_seas_removed']
+    modes = ['longterm','shortterm']
+    runs = ['noDA', 'DA_const_err', 'DA_varia_err']
 
-    # networks = ['SCAN','USCRN']
-    # res.index = res.network
-    # res = res.loc[networks,:]
-    # title = ','.join(networks)
-    title = 'all networks'
+    networks = ['SCAN','USCRN']
+    res.index = res.network
+    res = res.loc[networks,:]
+    title = ','.join(networks)
+    # title = 'all networks'
 
-    r_title = 'R (rsm) '+ title
-    ubrmsd_title = 'ubRMSD (rsm) '+ title
-    var = 'sm_profile'
+    r_title = 'R (rzsm) '+ title
+    ubrmsd_title = 'ubRMSD (rzsm) '+ title
+    var = 'sm_rootzone'
 
-    plt.figure(figsize=(18,9))
+    plt.figure(figsize=(10,8))
 
-    offsets = [-0.1,0.1]
-    cols = ['lightblue', 'lightgreen']
+    offsets = [-0.2,0.0,0.2]
+    cols = ['lightblue', 'lightgreen', 'coral']
     # offsets = [-0.3,-0.1,0.1,0.3]
     # cols = ['lightblue', 'lightgreen', 'coral', 'brown']
     fontsize=12
@@ -697,8 +703,68 @@ def plot_ismn_statistics():
         plt.axvline(i+0.5, linewidth=1, color='k')
     ax.set_title(ubrmsd_title,fontsize=fontsize)
 
+    plt.show()
+
+def plot_ensemble_uncertainty_vs_ubrmsd():
+
+    DA_const_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scaled_w_std')
+    DA_varia_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scl_errfile_w_std')
+
+    res = pd.read_csv(r'D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv',index_col=0)
+
+    res['ensstd_const_err'] = np.nan
+    res['ensstd_varia_err'] = np.nan
+
+    param = 'sm_surface'
+
+    for  idx, vals in res.iterrows():
+        print idx
+        res.loc[idx, 'ensstd_const_err'] = DA_const_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].mean().values
+        res.loc[idx, 'ensstd_varia_err'] = DA_varia_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].mean().values
+
+    xlim = [0,0.2]
+    ylim = [0,0.2]
+
+    plt.figure(figsize=(13,6))
+
+    # ---------------------------------------------------------------------------------
+    ax = plt.subplot(121)
+
+    xx = res['ensstd_const_err']
+    yy = res['ubrmsd_DA_const_err_absolute_sm_surface']
+    ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+
+    ax.plot(xlim,ylim,'--k')
+    ax.set_title('Constant observation error')
+    ax.set_xlim(xlim)
+    ax.set_ylim(xlim)
+    ax.set_xlabel('ensemble standard deviation')
+    ax.set_ylabel('ubRMSD')
+
+    print np.percentile(xx.dropna(), [5,25,50,75,95])
+    print np.percentile(yy.dropna(), [5,25,50,75,95])
+
+
+    # ---------------------------------------------------------------------------------
+
+    ax = plt.subplot(122)
+    xx = res['ensstd_varia_err']
+    yy = res['ubrmsd_DA_varia_err_absolute_sm_surface']
+    ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+
+    ax.plot(xlim, ylim, '--k')
+    ax.set_title('Variable observation error')
+    ax.set_xlim(xlim)
+    ax.set_ylim(xlim)
+    ax.set_xlabel('ensemble standard deviation')
+    ax.set_ylabel('ubRMSD')
+
+    print np.percentile(xx.dropna(), [5,25,50,75,95])
+    print np.percentile(yy.dropna(), [5,25,50,75,95])
 
     plt.show()
 
 if __name__=='__main__':
-    plot_ismn_statistics()
+    # plot_filter_diagnostics()
+    # plot_ismn_statistics()
+    plot_ensemble_uncertainty_vs_ubrmsd()

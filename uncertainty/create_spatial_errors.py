@@ -7,6 +7,8 @@ import pandas as pd
 from pyldas.interface import LDAS_io
 from pyldas.templates import template_error_Tb40
 
+from myprojects.timeseries import calc_anomaly
+
 def run():
 
     exp = 'US_M36_SMOS40_noDA_cal_scaled'
@@ -34,6 +36,35 @@ def run():
     edate = np.array([2016, 12, 31, 0, 0])
     lengths = np.array([len(tiles), len(angles)])  # tiles, incidence angles, whatever
 
+    dims = io.timeseries['obs_obs'].shape
+
+    obs_errstd = np.full(dims[0:-1], 4.)
+
+    # ----- Calculate anomalies -----
+    cnt = 0
+    for spc in np.arange(dims[0]):
+        for lat in np.arange(dims[1]):
+            for lon in np.arange(dims[2]):
+                cnt += 1
+                print '%i / %i' % (cnt, np.prod(dims[0:-1]))
+
+                try:
+                    obs = calc_anomaly(io.timeseries['obs_obs'][spc, lat, lon, :].to_dataframe()['obs_obs'],
+                                       method='moving_average', longterm=True)
+                    fcst = calc_anomaly(io.timeseries['obs_fcst'][spc, lat, lon, :].to_dataframe()['obs_fcst'],
+                                        method='moving_average', longterm=True)
+                    fcst_errvar = np.nanmean(io.timeseries['obs_fcstvar'][spc, lat, lon, :].values)
+
+                    tmp_obs_errstd = (((obs - fcst) ** 2).mean() - fcst_errvar) ** 0.5
+                    if not np.isnan(tmp_obs_errstd):
+                        obs_errstd[spc, lat, lon] = tmp_obs_errstd
+
+                except:
+                    pass
+
+    np.place(obs_errstd, obs_errstd < 0, 0)
+    np.place(obs_errstd, obs_errstd > 20, 20)
+
     # ----- write output files -----
     for orb in orbits:
         # !!! inconsistent with the definition in the obs_paramfile (species) !!!
@@ -41,21 +72,11 @@ def run():
 
         res = template.copy()
 
-        spc = 1 if orb == 'A' else 2 # H polarization
-        fcst_errvar = io.timeseries.sel(species=spc).obs_fcstvar.mean('time')
-        obs_errstd = np.sqrt(((io.timeseries.sel(species=spc).obs_fcst - io.timeseries.sel(species=spc).obs_obs) ** 2).mean('time') - fcst_errvar)
-        np.place(obs_errstd.values, obs_errstd.values < 0, 0)
-        np.place(obs_errstd.values, obs_errstd.values > 20, 20)
-        res['err_Tbh'] = obs_errstd.values[ind_lat,ind_lon]
+        spc = 0 if orb == 'A' else 1
+        res['err_Tbh'] = obs_errstd[spc,ind_lat,ind_lon]
 
-        spc = 3 if orb == 'A' else 4 # V polarization
-        fcst_errvar = io.timeseries.sel(species=spc).obs_fcstvar.mean('time')
-        obs_errstd = np.sqrt(((io.timeseries.sel(species=spc).obs_fcst - io.timeseries.sel(species=spc).obs_obs) ** 2).mean('time') - fcst_errvar)
-        np.place(obs_errstd.values, obs_errstd.values < 0, 0)
-        np.place(obs_errstd.values, obs_errstd.values > 20, 20)
-        res['err_Tbv'] = obs_errstd.values[ind_lat,ind_lon]
-
-        res.replace(np.nan, 6, inplace=True)
+        spc = 2 if orb == 'A' else 3
+        res['err_Tbv'] = obs_errstd[spc,ind_lat,ind_lon]
 
         fname = os.path.join(froot, fbase + orb + '.bin')
 
