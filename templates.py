@@ -49,6 +49,9 @@ def get_template(param):
     elif (param == 'incr')|(param == 'rstrt'):
         dtype, hdr, length = template_incr_rstrt()
 
+    elif param == 'smosL4SMaup':
+        dtype, hdr, length = template_smosL4SMaup()
+
     else:
         print 'No template found for "' + param + '".'
         dtype, hdr, length = (None, None, None)
@@ -300,3 +303,30 @@ def template_xhourly():
                       ('precipitation_total_surface_flux', '>f4')])
 
     return dtype, hdr, length
+
+def template_smosL4SMaup():
+    """"
+    Template for reading xhourly catchment output files
+    TODO Include the possibility to specify the Collection ID. Currently: 8 / tavg
+
+    """
+
+    hdr = None
+    length = None
+    dtype = np.dtype([('srfexc_fcst', '>f4'),
+                      ('rzexc_fcst', '>f4'),
+                      ('catdef_fcst', '>f4'),
+                      ('srfexc_ana', '>f4'),
+                      ('rzexc_ana', '>f4'),
+                      ('catdef_ana', '>f4')])
+
+    return dtype, hdr, length
+
+
+
+
+
+
+
+
+
