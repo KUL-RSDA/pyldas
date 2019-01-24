@@ -11,7 +11,7 @@ from collections import OrderedDict
 from pyldas.grids import EASE2
 
 from pyldas.templates import get_template
-from myprojects.functions import find_files, walk_up_folder
+from pyldas.functions import find_files, walk_up_folder
 from pyldas.paths import paths
 
 def s(line):
