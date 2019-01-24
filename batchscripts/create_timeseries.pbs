@@ -1,0 +1,34 @@
+#!/bin/bash
+#PBS -l walltime=23:59:00
+#PBS -l nodes=1:ppn=24
+#PBS -A lp_ees_swm_ls_001
+#PBS -m abe
+#PBS -M alexander.gruber@kuleuven.be
+#PBS -o ./log.txt
+#PBS -e ./out.txt
+
+exp=US_M36_SMOS40_DA_cal_scl_prog_std
+
+# --------------------------------------------------------
+# Generate netCDF image stacks with python
+# --------------------------------------------------------
+
+cd $PBS_O_WORKDIR
+python create_netcdf_images.py
+
+# --------------------------------------------------------
+# Generate netCDF timeseries stacks with nco
+# --------------------------------------------------------
+
+cd /scratch/leuven/320/vsc32046/output/TEST_RUNS
+
+cd $exp/output/SMAP_EASEv2_M36_US/ana/ens_avg
+
+ncks -4 -L 4 --cnk_dmn time,10000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
+
+cd ../../cat/ens_avg
+
+ncks -4 -L 4 --cnk_dmn time,20456 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
+
+cd $PBS_O_WORKDIR
+rm -f out.txt log.txt

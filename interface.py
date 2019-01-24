@@ -25,7 +25,7 @@ def b(line):
 class LDAS_io(object):
     """
     Class for reading and writing LDAS specific data
-    Default paths are taken from pygldas.constants
+    Default paths are taken from pyldas.paths
 
     Parameters
     ----------

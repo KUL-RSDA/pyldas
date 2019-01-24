@@ -12,6 +12,70 @@ from pyldas.grids import EASE2
 from pyldas.interface import LDAS_io
 
 
+def plot_catparams():
+
+    outpath = r'D:\work\LDAS\2018-01_catparams'
+
+    exp = 'US_M36_SMOS40_DA_cal_scaled'
+
+    tc = LDAS_io().tilecoord
+    tg = LDAS_io().tilegrids
+
+    tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
+    tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
+
+    lons = np.unique(tc.com_lon.values)
+    lats = np.unique(tc.com_lat.values)[::-1]
+
+    lons, lats = np.meshgrid(lons, lats)
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+    figsize = (20, 10)
+    # cbrange = (-20, 20)
+    cmap = 'jet'
+    fontsize = 20
+
+    params = LDAS_io(exp=exp).read_params('catparam')
+
+    for param in params:
+
+        fname = os.path.join(outpath, param + '.png')
+
+        img = np.full(lons.shape, np.nan)
+        img[tc.j_indg.values, tc.i_indg.values] = params[param].values
+        img_masked = np.ma.masked_invalid(img)
+
+        f = plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+        m = Basemap(projection='mill',
+                    llcrnrlat=llcrnrlat,
+                    urcrnrlat=urcrnrlat,
+                    llcrnrlon=llcrnrlon,
+                    urcrnrlon=urcrnrlon,
+                    resolution='c')
+
+        m.drawcoastlines()
+        m.drawcountries()
+        m.drawstates()
+
+        im = m.pcolormesh(lons, lats, img_masked, cmap=cmap, latlon=True)
+
+        cb = m.colorbar(im, "bottom", size="7%", pad="8%")
+
+        for t in cb.ax.get_xticklabels():
+            t.set_fontsize(fontsize)
+        for t in cb.ax.get_yticklabels():
+            t.set_fontsize(fontsize)
+
+        plt.title(param)
+
+        plt.savefig(fname, dpi=f.dpi)
+        plt.close()
+
+
 def plot_rtm_parameters():
 
     root = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters'
@@ -415,7 +479,7 @@ def plot_fcst_uncertainties():
 
 
 if __name__=='__main__':
-    plot_obs_uncertainties()
+    plot_catparams()
 
 
 # llcrnrlat = -58.,

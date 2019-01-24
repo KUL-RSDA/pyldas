@@ -608,14 +608,107 @@ def spatial_plot_ismn_stats():
     plt.tight_layout()
     plt.show()
 
-def plot_ismn_statistics():
+def spatial_plot_TCA_res():
 
-    fname = r"D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv"
-
+    fname = r"D:\work\LDAS\2018-06_rmse_uncertainty\TCA_evaluation\validation.csv"
     res = pd.read_csv(fname)
 
+    lats = res['lat'].values
+    lons = res['lon'].values
+
+    layer = 'surface'
+
+    vmin = 0
+    vmax = 0.05
+
+    marker_size = 100
+    cmap='hot_r'
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+
+    figsize = (18, 10)
+
+    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+    fontsize = 20
+
+    # ------------------------------------------------------------------------------------------------------------------
+    ax = plt.subplot(111)
+
+    # c = res['RMSE_model_DA_const_err_absolute_sm_surface'].values - res['RMSE_model_DA_varia_err_absolute_sm_surface'].values
+    c = res['RMSE_model_DA_varia_err_absolute_sm_surface'].values
+
+    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
+                resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x, y = m(lons, lats)
+    sc = ax.scatter(x, y, s=marker_size, c=c, marker='o', cmap=cmap, vmin=vmin, vmax=vmax)
+    # ax.set_title('Constant error - variable error', fontsize=fontsize)
+    ax.set_title('ubRMSE variable error', fontsize=fontsize)
+    cb = plt.colorbar(sc,orientation='horizontal',fraction=0.0475,pad=0.02,aspect=40)
+    cb.ax.tick_params(labelsize=fontsize)
+
+    plt.tight_layout()
+    plt.show()
+
+def spatial_plot_TCA_beta():
+
+    fname = r"D:\work\LDAS\2018-06_rmse_uncertainty\TCA_evaluation\validation.csv"
+    res = pd.read_csv(fname)
+
+    lats = res['lat'].values
+    lons = res['lon'].values
+
+    layer = 'surface'
+
+    vmin = 0.4
+    vmax = 1.6
+
+    marker_size = 100
+    cmap='seismic_r'
+
+    llcrnrlat = 24
+    urcrnrlat = 51
+    llcrnrlon = -128
+    urcrnrlon = -64
+
+    figsize = (18, 10)
+
+    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+
+    fontsize = 20
+
+    # ------------------------------------------------------------------------------------------------------------------
+    ax = plt.subplot(111)
+
+    c = res['beta_insitu_DA_varia_err_absolute_sm_surface'].values
+
+    m = Basemap(projection='mill', llcrnrlat=llcrnrlat, urcrnrlat=urcrnrlat, llcrnrlon=llcrnrlon, urcrnrlon=urcrnrlon,
+                resolution='c')
+    m.drawcoastlines()
+    m.drawcountries()
+    m.drawstates()
+    x, y = m(lons, lats)
+    sc = ax.scatter(x, y, s=marker_size, c=c, marker='o', cmap=cmap, vmin=vmin, vmax=vmax)
+    ax.set_title('scaling factor', fontsize=fontsize)
+    cb = plt.colorbar(sc,orientation='horizontal',fraction=0.0475,pad=0.02,aspect=40)
+    cb.ax.tick_params(labelsize=fontsize)
+
+    plt.tight_layout()
+    plt.show()
+
+def plot_ismn_statistics():
+
+    res = pd.read_csv(r"D:\work\LDAS\2018-06_rmse_uncertainty\TCA_evaluation\validation.csv")
+    res2 = pd.read_csv(r"D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv")
+
     # variables = ['sm_surface','sm_rootzone','sm_profile']
-    modes = ['longterm','shortterm']
+    modes = ['absolute',]
     runs = ['noDA', 'DA_const_err', 'DA_varia_err']
 
     networks = ['SCAN','USCRN']
@@ -624,9 +717,10 @@ def plot_ismn_statistics():
     title = ','.join(networks)
     # title = 'all networks'
 
-    r_title = 'R (rzsm) '+ title
-    ubrmsd_title = 'ubRMSD (rzsm) '+ title
-    var = 'sm_rootzone'
+    # r_title = 'R (rzsm) '+ title
+    ubrmsd_title = 'ubRMSD (ssm) '+ title
+    ubrmse_title = 'ubRMSE (ssm) '+ title
+    var = 'sm_surface'
 
     plt.figure(figsize=(10,8))
 
@@ -636,7 +730,75 @@ def plot_ismn_statistics():
     # cols = ['lightblue', 'lightgreen', 'coral', 'brown']
     fontsize=12
 
-    ax = plt.subplot(211)
+    # ax = plt.subplot(211)
+    # plt.grid(color='k', linestyle='--', linewidth=0.25)
+    #
+    # data = list()
+    # ticks = list()
+    # pos = list()
+    # colors = list()
+    #
+    # for i,mode in enumerate(modes):
+    #     ticks.append(mode)
+    #     for col,offs,run in zip(cols,offsets,runs):
+    #         tmp_data = res['corr_'+run+'_'+mode+'_'+var].values
+    #         tmp_data = tmp_data[~np.isnan(tmp_data)]
+    #         data.append(tmp_data)
+    #         pos.append(i+1 + offs)
+    #         colors.append(col)
+    # box = ax.boxplot(data, whis=[5,95], showfliers=False, positions=pos, widths=0.1, patch_artist=True)
+    # for patch, color in zip(box['boxes'], colors):
+    #     patch.set(color='black', linewidth=2)
+    #     patch.set_facecolor(color)
+    # for patch in box['medians']:
+    #     patch.set(color='black', linewidth=2)
+    # for patch in box['whiskers']:
+    #     patch.set(color='black', linewidth=1)
+    # plt.figlegend((box['boxes'][0:4]),runs,'upper left',fontsize=fontsize)
+    # plt.xticks(np.arange(len(modes))+1, ticks,fontsize=fontsize)
+    # plt.yticks(fontsize=fontsize)
+    # plt.xlim(0.5,len(ticks)+0.5)
+    # plt.ylim(0.0,1.0)
+    # for i in np.arange(len(modes)):
+    #     plt.axvline(i+0.5, linewidth=1, color='k')
+    # ax.set_title(r_title ,fontsize=fontsize)
+
+    # ---------------------------------------------------------------------------------------------------------
+    ax = plt.subplot(121)
+    plt.grid(color='k', linestyle='--', linewidth=0.25)
+
+    data = list()
+    ticks = list()
+    pos = list()
+    colors = list()
+
+    for i, mode in enumerate(modes):
+        ticks.append(mode)
+        for col, offs, run in zip(cols, offsets, runs):
+            tmp_data = res2['ubrmsd_' + run + '_' + mode + '_' + var].values
+            tmp_data = tmp_data[~np.isnan(tmp_data)]
+            data.append(tmp_data)
+            pos.append(i + 1 + offs)
+            colors.append(col)
+    box = ax.boxplot(data, whis=[5, 95], showfliers=False, positions=pos, widths=0.1, patch_artist=True)
+    for patch, color in zip(box['boxes'], colors):
+        patch.set(color='black', linewidth=2)
+        patch.set_facecolor(color)
+    for patch in box['medians']:
+        patch.set(color='black', linewidth=2)
+    for patch in box['whiskers']:
+        patch.set(color='black', linewidth=1)
+    plt.figlegend((box['boxes'][0:4]), runs, 'upper left', fontsize=fontsize)
+    plt.xticks(np.arange(len(modes)) + 1, ticks, fontsize=fontsize)
+    plt.yticks(fontsize=fontsize)
+    plt.xlim(0.5, len(ticks) + 0.5)
+    plt.ylim(0, 0.1)
+    for i in np.arange(len(modes)):
+        plt.axvline(i + 0.5, linewidth=1, color='k')
+    ax.set_title(ubrmsd_title, fontsize=fontsize)
+
+    # ---------------------------------------------------------------------------------------------------------
+    ax = plt.subplot(122)
     plt.grid(color='k', linestyle='--', linewidth=0.25)
 
     data = list()
@@ -647,7 +809,7 @@ def plot_ismn_statistics():
     for i,mode in enumerate(modes):
         ticks.append(mode)
         for col,offs,run in zip(cols,offsets,runs):
-            tmp_data = res['corr_'+run+'_'+mode+'_'+var].values
+            tmp_data = res['RMSE_model_'+run+'_'+mode+'_'+var].values
             tmp_data = tmp_data[~np.isnan(tmp_data)]
             data.append(tmp_data)
             pos.append(i+1 + offs)
@@ -664,53 +826,25 @@ def plot_ismn_statistics():
     plt.xticks(np.arange(len(modes))+1, ticks,fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
     plt.xlim(0.5,len(ticks)+0.5)
-    plt.ylim(0.0,1.0)
-    for i in np.arange(len(modes)):
-        plt.axvline(i+0.5, linewidth=1, color='k')
-    ax.set_title(r_title ,fontsize=fontsize)
-
-    # ---------------------------------------------------------------------------------------------------------
-    ax = plt.subplot(212)
-    plt.grid(color='k', linestyle='--', linewidth=0.25)
-
-    data = list()
-    ticks = list()
-    pos = list()
-    colors = list()
-
-    for i,mode in enumerate(modes):
-        ticks.append(mode)
-        for col,offs,run in zip(cols,offsets,runs):
-            tmp_data = res['ubrmsd_'+run+'_'+mode+'_'+var].values
-            tmp_data = tmp_data[~np.isnan(tmp_data)]
-            data.append(tmp_data)
-            pos.append(i+1 + offs)
-            colors.append(col)
-    box = ax.boxplot(data, whis=[5,95], showfliers=False, positions=pos, widths=0.1, patch_artist=True)
-    for patch, color in zip(box['boxes'], colors):
-        patch.set(color='black', linewidth=2)
-        patch.set_facecolor(color)
-    for patch in box['medians']:
-        patch.set(color='black', linewidth=2)
-    for patch in box['whiskers']:
-        patch.set(color='black', linewidth=1)
-    # plt.figlegend((box['boxes'][0:4]),runs,'upper left',fontsize=fontsize)
-    plt.xticks(np.arange(len(modes))+1, ticks,fontsize=fontsize)
-    plt.yticks(fontsize=fontsize)
-    plt.xlim(0.5,len(ticks)+0.5)
     plt.ylim(0,0.1)
     for i in np.arange(len(modes)):
         plt.axvline(i+0.5, linewidth=1, color='k')
-    ax.set_title(ubrmsd_title,fontsize=fontsize)
+    ax.set_title(ubrmse_title,fontsize=fontsize)
 
     plt.show()
 
 def plot_ensemble_uncertainty_vs_ubrmsd():
 
-    DA_const_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scaled_w_std')
-    DA_varia_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scl_errfile_w_std')
+    DA_const_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scaled')
+    DA_varia_err = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scl_errfile')
+
+    t_ana = pd.DatetimeIndex(LDAS_io('ObsFcstAna', 'US_M36_SMOS40_DA_cal_scaled').timeseries.time.values).sort_values()
 
     res = pd.read_csv(r'D:\work\LDAS\2018-06_rmse_uncertainty\insitu_evaluation\validation.csv',index_col=0)
+    res2 = pd.read_csv(r'D:\work\LDAS\2018-06_rmse_uncertainty\TCA_evaluation\validation.csv',index_col=0)
+
+    res['RMSE_model_DA_const_err_absolute_sm_surface'] = res2['RMSE_model_DA_const_err_absolute_sm_surface']
+    res['RMSE_model_DA_varia_err_absolute_sm_surface'] = res2['RMSE_model_DA_varia_err_absolute_sm_surface']
 
     res['ensstd_const_err'] = np.nan
     res['ensstd_varia_err'] = np.nan
@@ -719,11 +853,11 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
 
     for  idx, vals in res.iterrows():
         print idx
-        res.loc[idx, 'ensstd_const_err'] = DA_const_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].mean().values
-        res.loc[idx, 'ensstd_varia_err'] = DA_varia_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].mean().values
+        res.loc[idx, 'ensstd_const_err'] = DA_const_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].to_pandas().loc[t_ana - pd.to_timedelta('2 hours')].mean()
+        res.loc[idx, 'ensstd_varia_err'] = DA_varia_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].to_pandas().loc[t_ana - pd.to_timedelta('2 hours')].mean()
 
-    xlim = [0,0.2]
-    ylim = [0,0.2]
+    xlim = [0,0.12]
+    ylim = [0,0.12]
 
     plt.figure(figsize=(13,6))
 
@@ -732,17 +866,26 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
 
     xx = res['ensstd_const_err']
     yy = res['ubrmsd_DA_const_err_absolute_sm_surface']
+    zz = res['RMSE_model_DA_const_err_absolute_sm_surface']
+
+    a = res[['ubrmsd_DA_const_err_absolute_sm_surface','RMSE_model_DA_const_err_absolute_sm_surface']]
+    b = res[['ensstd_const_err',]]
+    print a.apply(lambda col: col.corr(b.ix[:,0], method='spearman'), axis=0)
+
     ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+    # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
+    # (xx - zz).hist(bins=20, range=(-0.06, 0.06))
 
     ax.plot(xlim,ylim,'--k')
     ax.set_title('Constant observation error')
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
+    # ax.set_xlabel('ensemble standard deviation minus ubRMSD / TCA RMSE')
     ax.set_xlabel('ensemble standard deviation')
     ax.set_ylabel('ubRMSD')
 
-    print np.percentile(xx.dropna(), [5,25,50,75,95])
-    print np.percentile(yy.dropna(), [5,25,50,75,95])
+    # print np.percentile((xx-yy).dropna(), [5,25,50,75,95])
+    # print np.percentile(yy.dropna(), [5,25,50,75,95])
 
 
     # ---------------------------------------------------------------------------------
@@ -750,21 +893,86 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
     ax = plt.subplot(122)
     xx = res['ensstd_varia_err']
     yy = res['ubrmsd_DA_varia_err_absolute_sm_surface']
+    zz = res['RMSE_model_DA_varia_err_absolute_sm_surface']
+
+    a = res[['ubrmsd_DA_varia_err_absolute_sm_surface', 'RMSE_model_DA_varia_err_absolute_sm_surface']]
+    b = res[['ensstd_varia_err', ]]
+    print a.apply(lambda col: col.corr(b.ix[:, 0], method='spearman'), axis=0)
+
     ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+    # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
+    # (xx - zz).hist(bins=20, range=(-0.06, 0.06))
 
     ax.plot(xlim, ylim, '--k')
     ax.set_title('Variable observation error')
     ax.set_xlim(xlim)
     ax.set_ylim(xlim)
+    # ax.set_xlabel('ensemble standard deviation minus ubRMSD / TCA RMSE')
     ax.set_xlabel('ensemble standard deviation')
     ax.set_ylabel('ubRMSD')
 
-    print np.percentile(xx.dropna(), [5,25,50,75,95])
-    print np.percentile(yy.dropna(), [5,25,50,75,95])
+    # print np.percentile((xx-yy).dropna(), [5,25,50,75,95])
+    # print np.percentile(yy.dropna(), [5,25,50,75,95])
 
     plt.show()
+
+def plot_Tb_uncertainty_vs_ubrmsd():
+
+    res = pd.read_csv(r"D:\work\LDAS\2018-06_rmse_uncertainty\Tb_evaluation\validation.csv", index_col=0)
+
+    xlim = [0,16]
+    ylim = [0,4]
+
+    plt.figure(figsize=(13, 6))
+
+    # ---------------------------------------------------------------------------------
+    ax = plt.subplot(121)
+
+    xx = res['ubrmsd_const_err']
+    yy = res['ensstd_const_err']
+
+    ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+    # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
+    # (xx - zz).hist(bins=20, range=(-0.06, 0.06))
+
+    # ax.plot(xlim,ylim,'--k')
+    ax.set_title('Constant observation error')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel('Tb ubRMSD')
+    ax.set_ylabel('Tb ensemble standard deviation')
+    # ax.set_ylabel('ubRMSD')
+
+    # print np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95])
+    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+
+    # ---------------------------------------------------------------------------------
+
+    ax = plt.subplot(122)
+    xx = res['ubrmsd_varia_err']
+    yy = res['ensstd_varia_err']
+    ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
+    # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
+    # (xx - zz).hist(bins=20, range=(-0.06, 0.06))
+
+    # ax.plot(xlim, ylim, '--k')
+    ax.set_title('Variable observation error')
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    ax.set_xlabel('Tb ubRMSD')
+    ax.set_ylabel('Tb ensemble standard deviation')
+    # ax.set_ylabel('ubRMSD')
+
+    print np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95])
+    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+
+    plt.show()
+
 
 if __name__=='__main__':
     # plot_filter_diagnostics()
     # plot_ismn_statistics()
     plot_ensemble_uncertainty_vs_ubrmsd()
+    # plot_Tb_uncertainty_vs_ubrmsd()
+    # spatial_plot_TCA_beta()
+    # spatial_plot_TCA_res()
