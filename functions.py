@@ -1,6 +1,10 @@
 
 import os
+import logging
+
 import numpy as np
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def walk_up_folder(path, depth=1):
     """ Walk up a specific number of sub-directories """
@@ -20,7 +24,7 @@ def find_files(path,searchstr):
                 res.append(os.path.join(root, f))
 
     if len(res) == 0:
-        print 'No files found which contain: "' + searchstr + '".'
+        logging.warning('No files found which contain: "' + searchstr + '".')
         return None
     elif len(res) == 1:
         return res[0]

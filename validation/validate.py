@@ -1,5 +1,6 @@
 
 import os
+import logging
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,8 @@ from myprojects.readers.insitu import ISMN_io
 from myprojects.timeseries import calc_anomaly
 
 from netCDF4 import Dataset
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def ncfile_init(fname, lats, lons, runs, species, tags):
 
@@ -71,7 +74,7 @@ def filter_diagnostics_evaluation():
     for i_run,run in enumerate(runs):
         for i_spc,spc in enumerate(species):
 
-            print 'run %i, species %i' % (i_run,i_spc)
+            logging.info('run %i, species %i' % (i_run,i_spc))
 
             ds['innov_mean'][:,:,i_run,i_spc] = (runs[run][0]['obs_obs'][i_spc] - runs[run][0]['obs_fcst'][i_spc]).mean(dim='time').values
             ds['innov_var'][:,:,i_run,i_spc] = (runs[run][0]['obs_obs'][i_spc] - runs[run][0]['obs_fcst'][i_spc]).var(dim='time').values
@@ -125,7 +128,7 @@ def insitu_evaluation():
     i = 0
     for meta, ts_insitu in ismn.iter_stations():
         i += 1
-        print '%i/%i' % (i, len(ismn.list))
+        logging.info('%i/%i' % (i, len(ismn.list)))
 
         res = pd.DataFrame(meta.copy()).transpose()
         col = meta.ease_col
@@ -181,14 +184,14 @@ def Tb_evaluation():
 
     for i, (meta, ts_insitu) in enumerate(ismn.iter_stations()):
 
-        print '%i/%i' % (i, len(ismn.list))
+        logging.info('%i/%i' % (i, len(ismn.list)))
 
         res = pd.DataFrame(meta.copy()).transpose()
         col = meta.ease_col
         row = meta.ease_row
 
         for io, mode in zip([DA_const_err,DA_varia_err],['const_err','varia_err']):
-            ubRMSD = np.sqrt((((io.timeseries['obs_obs'][:, row, col, :] - io.timeseries['obs_obs'][:, row, col, :].mean()) \
+            ubRMSD = np.sqrt((((io.timeseries['obs_obs'][:, row, col, :] - io.timeseries['obs_obs'][:, row, col, :].mean())
                 - (io.timeseries['obs_fcst'][:,row,col, :] - io.timeseries['obs_fcst'][:,row,col, :].mean()))**2).mean().values)
             ensstd = np.sqrt(io.timeseries['obs_anavar'][:,row,col,:].mean()).values
             res['ubrmsd_' + mode] = ubRMSD
@@ -229,7 +232,7 @@ def TCA_insitu_evaluation():
     modes = ['absolute', ]
 
     for i, (meta, ts_insitu) in enumerate(ismn.iter_stations()):
-        print '%i/%i' % (i, len(ismn.list))
+        logging.info('%i/%i' % (i, len(ismn.list)))
 
         try:
 

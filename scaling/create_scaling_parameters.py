@@ -1,5 +1,6 @@
 
 import os
+import logging
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,8 @@ from myprojects.functions import find_files
 from pyldas.templates import template_scaling
 
 from myprojects.timeseries import calc_clim_harmonic, calc_pentadal_mean
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def calc_clim_p(ts, mode='pentadal', n=3):
 
@@ -25,6 +28,7 @@ def calc_clim_p(ts, mode='pentadal', n=3):
     return clim
 
 def run(mode='annual'): # annual / longterm
+
 
     froot = r"D:\data_sets\LDAS_runs\US_M36_SMOS_noDA_cal_unscaled\obs_scaling_pentadal_annual"
     fbase = '7Thv_TbSM_001_SMOS_zscore_stats_2010_p37_2015_p36_hscale_0.00_W_9p_Nmin_20_'
@@ -69,7 +73,7 @@ def run(mode='annual'): # annual / longterm
 
     # ----- calculate mean and reshuffle -----
     for i,til in enumerate(tiles):
-        print '%i/%i' % (i, len(tiles))
+        logging.info('%i/%i' % (i, len(tiles)))
         for pol in pols:
             for ang in angles:
                 for orb in orbits:

@@ -1,5 +1,6 @@
 
 import os
+import logging
 
 import numpy as np
 import pandas as pd
@@ -8,6 +9,8 @@ from pyldas.interface import LDAS_io
 from pyldas.templates import template_error_Tb40
 
 from myprojects.timeseries import calc_anomaly
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def run():
 
@@ -46,7 +49,7 @@ def run():
         for lat in np.arange(dims[1]):
             for lon in np.arange(dims[2]):
                 cnt += 1
-                print '%i / %i' % (cnt, np.prod(dims[0:-1]))
+                logging.info('%i / %i' % (cnt, np.prod(dims[0:-1])))
 
                 try:
                     obs = calc_anomaly(io.timeseries['obs_obs'][spc, lat, lon, :].to_dataframe()['obs_obs'],

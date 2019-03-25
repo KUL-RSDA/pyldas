@@ -37,13 +37,15 @@ class paths(object):
     def __init__(self, root=None, exp=None, domain=None):
 
         if root is None:
-            sys = 'win' if platform.system() == 'Windows' else 'lnx'
-            if sys == 'win':
+            if platform.system() == 'Windows':
                 # default path for local copies on a windows machine
-                self.root = r'D:\data_sets\LDAS_runs'
+                self.root = os.path.join('D:', 'data_sets', 'LDAS_runs')
+            elif platform.system() == 'Darwin':
+                # default path for local copies on a Mac
+                self.root = os.path.join('/', 'data_sets', 'LDAS_runs')
             else:
                 # default path on the HPC
-                self.root = '/scratch/leuven/320/vsc32046/output/TEST_RUNS'
+                self.root = os.path.join('/', 'scratch', 'leuven', '320', 'vsc32046', 'output', 'TEST_RUNS')
 
         # default experiment name
         if exp is None:

@@ -1,5 +1,8 @@
 
+import logging
 import numpy as np
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def get_template(param):
     """
@@ -53,7 +56,7 @@ def get_template(param):
         dtype, hdr, length = template_smosL4SMaup()
 
     else:
-        print 'No template found for "' + param + '".'
+        logging.warning('No template found for "' + param + '".')
         dtype, hdr, length = (None, None, None)
 
     return dtype, hdr, length

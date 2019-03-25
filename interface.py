@@ -1,5 +1,6 @@
 
 import os
+import logging
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,8 @@ from pyldas.grids import EASE2
 from pyldas.templates import get_template
 from pyldas.functions import find_files, walk_up_folder
 from pyldas.paths import paths
+
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 def s(line):
     """" Remove quotes from string """
@@ -84,7 +87,7 @@ class LDAS_io(object):
             self.files = find_files(path, param)
 
             if self.files[0].find('images.nc') == -1:
-                print 'NetCDF image cube not yet created. Use method "bin2netcdf".'
+                logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
                 self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M').sort_values()
 
                 # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
@@ -96,7 +99,7 @@ class LDAS_io(object):
             else:
                 self.images = xr.open_dataset(self.files[0])
                 if self.files[1].find('timeseries.nc') == -1:
-                    print 'NetCDF time series cube not yet created. Use the NetCDF kitchen sink.'
+                    logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
                 else:
                     self.timeseries = xr.open_dataset(self.files[1])
 
@@ -272,7 +275,7 @@ class LDAS_io(object):
         """
 
         if not os.path.isfile(fname):
-            print 'file "', fname, '" not found.'
+            logging.warning('file "', fname, '" not found.')
             return None
 
         fid = open(fname, 'rb')
@@ -295,7 +298,6 @@ class LDAS_io(object):
             data = pd.DataFrame(columns=dtype.names, index=(loc,))
 
         if length==0:
-            # print 'Empty file'
             return data
 
         # read data
@@ -417,10 +419,10 @@ class LDAS_io(object):
             fname = [f for f in self.files if f.find(datestr) != -1]
 
             if len(fname) == 0:
-                print 'No files found for: "' + datestr + '".'
+                logging.warning('No files found for: "' + datestr + '".')
                 return None
             elif len(fname) > 1:
-                print 'Multiple files found for: "' + datestr + '".'
+                logging.warning('Multiple files found for: "' + datestr + '".')
             else:
                 fname = fname[0]
 
@@ -531,14 +533,14 @@ class LDAS_io(object):
             # Remove dates which do not contain any data
             nodata = list()
             for i, dt in enumerate(dates):
-                print '%d / %d' % (i, len(dates))
+                logging.info('%d / %d' % (i, len(dates)))
                 data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
                 if len(data) == 0:
                     nodata.append(dt)
 
             dates = dates.drop(nodata)
             if len(dates) == 0:
-                print 'Images do not contain valid data.'
+                logging.warning('Images do not contain valid data.')
                 return
 
             spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
@@ -549,7 +551,7 @@ class LDAS_io(object):
         dataset = self.ncfile_init(out_file, dimensions, variables)
 
         for i,dt in enumerate(dates):
-            print '%d / %d' % (i, len(dates))
+            logging.info('%d / %d' % (i, len(dates)))
 
             data = self.read_image(dt.year,dt.month,dt.day,dt.hour,dt.minute)
             if len(data) == 0:

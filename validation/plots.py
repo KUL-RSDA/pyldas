@@ -852,7 +852,7 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
     param = 'sm_surface'
 
     for  idx, vals in res.iterrows():
-        print idx
+        print(idx)
         res.loc[idx, 'ensstd_const_err'] = DA_const_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].to_pandas().loc[t_ana - pd.to_timedelta('2 hours')].mean()
         res.loc[idx, 'ensstd_varia_err'] = DA_varia_err.timeseries[param][vals['ease_row'], vals['ease_col'], :].to_pandas().loc[t_ana - pd.to_timedelta('2 hours')].mean()
 
@@ -870,7 +870,7 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
 
     a = res[['ubrmsd_DA_const_err_absolute_sm_surface','RMSE_model_DA_const_err_absolute_sm_surface']]
     b = res[['ensstd_const_err',]]
-    print a.apply(lambda col: col.corr(b.ix[:,0], method='spearman'), axis=0)
+    print(a.apply(lambda col: col.corr(b.ix[:,0], method='spearman'), axis=0))
 
     ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
     # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
@@ -884,8 +884,8 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
     ax.set_xlabel('ensemble standard deviation')
     ax.set_ylabel('ubRMSD')
 
-    # print np.percentile((xx-yy).dropna(), [5,25,50,75,95])
-    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+    # print(np.percentile((xx-yy).dropna(), [5,25,50,75,95]))
+    # print(np.percentile(yy.dropna(), [5,25,50,75,95]))
 
 
     # ---------------------------------------------------------------------------------
@@ -897,7 +897,7 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
 
     a = res[['ubrmsd_DA_varia_err_absolute_sm_surface', 'RMSE_model_DA_varia_err_absolute_sm_surface']]
     b = res[['ensstd_varia_err', ]]
-    print a.apply(lambda col: col.corr(b.ix[:, 0], method='spearman'), axis=0)
+    print(a.apply(lambda col: col.corr(b.ix[:, 0], method='spearman'), axis=0))
 
     ax.plot(xx, yy, 'o', markersize=3, markerfacecolor='k', markeredgecolor='k')
     # (xx - yy).hist(bins=20, range=(-0.2, 0.02))
@@ -911,8 +911,8 @@ def plot_ensemble_uncertainty_vs_ubrmsd():
     ax.set_xlabel('ensemble standard deviation')
     ax.set_ylabel('ubRMSD')
 
-    # print np.percentile((xx-yy).dropna(), [5,25,50,75,95])
-    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+    # print(np.percentile((xx-yy).dropna(), [5,25,50,75,95]))
+    # print(np.percentile(yy.dropna(), [5,25,50,75,95]))
 
     plt.show()
 
@@ -943,8 +943,8 @@ def plot_Tb_uncertainty_vs_ubrmsd():
     ax.set_ylabel('Tb ensemble standard deviation')
     # ax.set_ylabel('ubRMSD')
 
-    # print np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95])
-    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+    # print(np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95]))
+    # print(np.percentile(yy.dropna(), [5,25,50,75,95]))
 
     # ---------------------------------------------------------------------------------
 
@@ -963,8 +963,8 @@ def plot_Tb_uncertainty_vs_ubrmsd():
     ax.set_ylabel('Tb ensemble standard deviation')
     # ax.set_ylabel('ubRMSD')
 
-    print np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95])
-    # print np.percentile(yy.dropna(), [5,25,50,75,95])
+    print(np.percentile((xx - yy).dropna(), [5, 25, 50, 75, 95]))
+    # print(np.percentile(yy.dropna(), [5,25,50,75,95]))
 
     plt.show()
 

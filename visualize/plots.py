@@ -365,10 +365,10 @@ def plot_innov(spc=8, row=35, col=65):
     df['fcst_diff'] = ts_scl['obs_fcst'][spc,row,col].values - ts_usc['obs_fcst'][spc,row,col].values
     df.dropna().plot(ax=ax3)
 
-    print len(ts_scl['obs_obs'][spc,row,col].dropna('time'))
-    print len(ts_scl['obs_fcst'][spc,row,col].dropna('time'))
-    print len(ts_usc['obs_obs'][spc,row,col].dropna('time'))
-    print len(ts_usc['obs_fcst'][spc,row,col].dropna('time'))
+    print(len(ts_scl['obs_obs'][spc,row,col].dropna('time')))
+    print(len(ts_scl['obs_fcst'][spc,row,col].dropna('time')))
+    print(len(ts_usc['obs_obs'][spc,row,col].dropna('time')))
+    print(len(ts_usc['obs_fcst'][spc,row,col].dropna('time')))
 
     plt.tight_layout()
     plt.show()
