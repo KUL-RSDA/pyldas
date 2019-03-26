@@ -53,7 +53,7 @@ class LDAS_io(object):
         Name of the parameter for which data is loaded
     files : np.array
         Array containing all names within the specified experiment directory, that match
-        the specified parameter
+        the specified parameter (excluding netcdf files, if already created)
     dates : pd.DatetimeIndex
         Dates corresponding to the files in self.files
     images : xr.Dataset
@@ -88,20 +88,23 @@ class LDAS_io(object):
 
             if self.files[0].find('images.nc') == -1:
                 logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
-                self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M').sort_values()
-
-                # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
-                # if self.param == 'xhourly':
-                    # self.dates += pd.to_timedelta('2 hours')
-
-                self.dtype, self.hdr, self.length = get_template(self.param)
-
             else:
                 self.images = xr.open_dataset(self.files[0])
-                if self.files[1].find('timeseries.nc') == -1:
+                self.files = self.files[1::]
+                if self.files[0].find('timeseries.nc') == -1:
                     logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
                 else:
-                    self.timeseries = xr.open_dataset(self.files[1])
+                    self.timeseries = xr.open_dataset(self.files[0])
+                    self.files = self.files[1::]
+
+            self.files.sort()
+            self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+
+            # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
+            # if self.param == 'xhourly':
+                # self.dates += pd.to_timedelta('2 hours')
+
+            self.dtype, self.hdr, self.length = get_template(self.param)
 
 
     def read_obsparam(self):
@@ -120,8 +123,9 @@ class LDAS_io(object):
 
         n_blocks = n_lines / n_fields
 
+        # different output scenarios.
         res = []
-        for bl in np.arange(n_blocks) * n_fields:
+        for bl in np.arange(n_blocks, dtype='int') * n_fields:
             if n_fields == 32 and n_blocks == 28:
                 res.append({'descr': s(lines[bl + 0]),
                             'species': int(lines[bl + 1]),
@@ -264,11 +268,6 @@ class LDAS_io(object):
 
         Returns
         -------
-        fid : file-id (if return_hdr is True)
-            The file ID of the opened file
-        hdr : list (if return_hdr is True)
-            The file header as list of integers
-
         data : pd.DataFrame (if return_hdr is False)
             Content of the fortran binary file
 
@@ -368,7 +367,7 @@ class LDAS_io(object):
             Mean, Std.dev, and N_data for model forecasts and observations.
 
         """
-        # TODO: WRONG TREATMENT OF ORBIT DIRECTION! A/D IS IN THE FILENMAE BEFORE THE PENTADE!
+        # TODO: WRONG TREATMENT OF ORBIT DIRECTION! A/D IS IN THE FILENAME BEFORE THE PENTADE!
 
         dtype, hdr, length = get_template('scaling')
 
@@ -392,9 +391,17 @@ class LDAS_io(object):
 
     def read_image(self, yr, mo, da, hr, mi, species=None):
         """"
-        Read an image for a given date/time(/species)
+        Read an image for a given date/time(/species/subregion)
         If a netCDF file has been created with self.bin2netcdf, the image will be read from this file,
         otherwise it is read from the fortran binary file
+
+        Parameters
+        ----------
+        yr, mo, da, hr, mi : int
+            Date for which the image should be read.
+        species : int
+            If provided, only a specific species will be read
+            No effect when reading fortran binaries!
 
         Returns
         -------
@@ -428,9 +435,18 @@ class LDAS_io(object):
 
             img = self.read_fortran_binary(fname, self.dtype, hdr=self.hdr, length=self.length)
 
+            # set index to match tilecoord indices
+            if 'obs_tilenum' in img:
+                # ObsFcstAna files
+                img.index = img['obs_tilenum'].values
+            else:
+                # All other files (hopefully)
+                img.index += 1
+
         return img
 
     def read_ts(self, param, col, row, species=None, lonlat=True):
+        """ Reads a time series from the netCDF time series chunked cube. """
 
         if lonlat is True:
             col, row = self.grid.lonlat2colrow(col, row, domain=True)
@@ -483,50 +499,112 @@ class LDAS_io(object):
 
         # Initialize dimensions
         chunksizes = []
-        for key, values in dimensions.iteritems():
+        for dim in dimensions:
 
             # convert pandas Datetime Index to netCDF-understandable numeric format
-            if key == 'time':
-                values = date2num(values.to_pydatetime(), timeunit).astype('int32')
+            if dim == 'time':
+                dimensions[dim] = date2num(dimensions[dim].to_pydatetime(), timeunit).astype('int32')
 
             # Files are per default image chunked
-            if key in ['lon','lat']:
-                chunksize = len(values)
+            if dim in ['lon','lat']:
+                chunksize = len(dimensions[dim])
             else:
                 chunksize = 1
             chunksizes.append(chunksize)
 
-            dtype = values.dtype
-            ds.createDimension(key, len(values))
-            ds.createVariable(key,dtype,
-                              dimensions=(key,),
+            dtype = dimensions[dim].dtype
+            ds.createDimension(dim, len(dimensions[dim]))
+            ds.createVariable(dim,dtype,
+                              dimensions=(dim,),
                               chunksizes=(chunksize,),
                               zlib=True)
-            ds.variables[key][:] = values
-        ds.variables['time'].setncattr('units',timeunit)
+            ds.variables[dim][:] = dimensions[dim]
+
+        # Coordinate attributes following CF-conventions
+        ds.variables['time'].setncatts({'long_name': 'time',
+                                        'units': timeunit})
+        ds.variables['lon'].setncatts({'long_name': 'longitude',
+                                       'units':'degrees_east'})
+        ds.variables['lat'].setncatts({'long_name': 'latitude',
+                                        'units':'degrees_north'})
 
         # Initialize variables
         for var in variables:
             ds.createVariable(var, 'float32',
-                              dimensions=dimensions.keys(),
+                              dimensions=list(dimensions.keys()),
                               chunksizes=chunksizes,
                               fill_value=-9999.,
                               zlib=True)
 
         return ds
 
-    def bin2netcdf(self):
-        """" Convert fortran binary image into a netCDF data cube """
+    def bin2netcdf(self,
+                   overwrite=False,
+                   date_from=None,
+                   date_to=None,
+                   latmin=-90.,
+                   latmax=90.,
+                   lonmin=-180.,
+                   lonmax=180.):
+
+        """"
+        Convert fortran binary image into a netCDF data cube.
+
+        Parameters
+        ----------
+        overwrite : boolean
+            If set, an already existing netCDF file will be overwritten
+        date_from : string
+            Lower time limit for which a netCDF image cube should be generated (string format, e.g., '2010-01-01')
+        date_to : string
+            Upper time limit for which a netCDF image cube should be generated (string format, e.g., '2010-01-01')
+        latmin : float
+            Lower latitude limit for which a netCDF image cube should be generated
+        latmax : float
+            Upper latitude limit for which a netCDF image cube should be generated
+        lonmin : float
+            Lower longitude limit for which a netCDF image cube should be generated
+        lonmax : float
+            Upper longitude limit for which a netCDF image cube should be generated
+
+        """
 
         out_path = walk_up_folder(self.files[0],3)
         out_file = os.path.join(out_path,self.param + '_images.nc')
 
+        # remove file if it already exists
+        if hasattr(self,'images'):
+            if overwrite is False:
+                logging.warning('bin2netcdf: NetCDF image file already exists. Use keyword "overwrite" to regenerate.')
+                return
+            else:
+                delattr(self, 'images')
+                os.remove(out_file)
+
         # get variable names from fortran reader template
         variables = get_template(self.param)[0].names
 
-        lons = np.sort(self.tilecoord.groupby('i_indg').first()['com_lon'])
-        lats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
+        # If specified, only generate netCDF file for specific date range
         dates = self.dates
+        if date_from is not None:
+            dates = dates[dates >= pd.to_datetime(date_from)]
+        if date_to is not None:
+            dates = dates[dates <= pd.to_datetime(date_to)]
+
+        filelons = np.sort(self.tilecoord.groupby('i_indg').first()['com_lon'])
+        filelats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
+
+        # Clip region based on specified coordinate boundaries
+        ind_img = self.tilecoord[(self.tilecoord['com_lon']>=lonmin)&(self.tilecoord['com_lon']<=lonmax)&
+                                 (self.tilecoord['com_lat']<=latmax)&(self.tilecoord['com_lat']>=latmin)].index
+        lonmin = self.tilecoord.loc[ind_img, 'com_lon'].values.min()
+        lonmax = self.tilecoord.loc[ind_img, 'com_lon'].values.max()
+        latmin = self.tilecoord.loc[ind_img, 'com_lat'].values.min()
+        latmax = self.tilecoord.loc[ind_img, 'com_lat'].values.max()
+        lons = filelons[(filelons >= lonmin) & (filelons <= lonmax)]
+        lats = filelats[(filelats >= latmin) & (filelats <= latmax)]
+        i_offg_2 = np.where(filelons >= lonmin)[0][0]
+        j_offg_2 = np.where(filelats <= latmax)[0][0]
 
         # Innovation file data has an additional 'species' dimension
         if self.param == 'ObsFcstAna':
@@ -534,7 +612,10 @@ class LDAS_io(object):
             nodata = list()
             for i, dt in enumerate(dates):
                 logging.info('%d / %d' % (i, len(dates)))
+
                 data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+                data = data.loc[data.index.intersection(ind_img),:]
+
                 if len(data) == 0:
                     nodata.append(dt)
 
@@ -553,20 +634,22 @@ class LDAS_io(object):
         for i,dt in enumerate(dates):
             logging.info('%d / %d' % (i, len(dates)))
 
-            data = self.read_image(dt.year,dt.month,dt.day,dt.hour,dt.minute)
+            data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+            data = data.loc[data.index.intersection(ind_img), :]
+
             if len(data) == 0:
                 continue
 
             if self.param == 'ObsFcstAna':
                 img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
-                ind_lat = self.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.tilegrids.loc['domain','j_offg']
-                ind_lon = self.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
+                ind_lat = self.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.tilegrids.loc['domain','j_offg'] - j_offg_2
+                ind_lon = self.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.tilegrids.loc['domain','i_offg'] - i_offg_2
                 ind_spc = data['obs_species'].values - 1
 
             else:
                 img = np.full((len(lats),len(lons)), -9999., dtype='float32')
-                ind_lat = self.tilecoord.loc[:, 'j_indg'].values - self.tilegrids.loc['domain','j_offg']
-                ind_lon = self.tilecoord.loc[:, 'i_indg'].values - self.tilegrids.loc['domain','i_offg']
+                ind_lat = self.tilecoord.loc[ind_img, 'j_indg'].values - self.tilegrids.loc['domain','j_offg'] - j_offg_2
+                ind_lon = self.tilecoord.loc[ind_img, 'i_indg'].values - self.tilegrids.loc['domain','i_offg'] - i_offg_2
 
             for var in variables:
                 # replace NaN values with the default -9999. fill Value
@@ -587,14 +670,25 @@ class LDAS_io(object):
 
 if __name__=='__main__':
 
-    io = LDAS_io('ensstd', 'US_M36_SMOS40_DA_cal_scl_errfile_w_std')
-    io.bin2netcdf()
-    # io = LDAS_io('incr', 'US_M36_SMOS_DA_cal_scaled_yearly')
-    # io.bin2netcdf()
-    # io = LDAS_io('xhourly', 'US_M36_SMOS_DA_cal_scaled_yearly')
-    # io.bin2netcdf()
-    # io = LDAS_io('ObsFcstAna', 'US_M36_SMOS_DA_cal_scaled_yearly')
-    # io.bin2netcdf()
+    date_from = '2016-06-01'
+    date_to = '2016-07-01'
+    # date_from = None
+    # date_to = None
 
+    latmin=35.
+    latmax=45.
+    lonmin=-90.
+    lonmax=-50.
+    # latmin=0
+    # latmax=90
+    # lonmin=-180.
+    # lonmax=0.
+
+    param = 'xhourly'
+    exp = 'US_M36_SMOS40_DA_cal_scaled'
+
+    io = LDAS_io(param, exp)
+
+    io.bin2netcdf(overwrite=True, date_from=date_from, date_to=date_to, latmin=latmin, latmax=latmax, lonmin=lonmin, lonmax=lonmax)
 
     # io.read_ts('obs_obs', -113.480529785, 40.691051628, species=1).plot()
