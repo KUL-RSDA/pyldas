@@ -36,14 +36,14 @@ def run(mode='annual'): # annual / longterm
     io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS_noDA_cal_unscaled')
     dtype = template_scaling()[0]
 
-    tiles = io.tilecoord['tile_id'].values.astype('int32')
+    tiles = io.grid.tilecoord['tile_id'].values.astype('int32')
     angles = np.array([30., 35., 40., 45., 50., 55., 60.])
     pols = ['V','H']
     orbits = ['A', 'D']
 
     template = pd.DataFrame(columns=dtype.names, index=tiles).astype('float32')
-    template['lon'] = io.tilecoord['com_lon'].values.astype('float32')
-    template['lat'] = io.tilecoord['com_lat'].values.astype('float32')
+    template['lon'] = io.grid.tilecoord['com_lon'].values.astype('float32')
+    template['lat'] = io.grid.tilecoord['com_lat'].values.astype('float32')
     template['tile_id'] = tiles.astype('int32')
 
     pentads = np.arange(73)+1

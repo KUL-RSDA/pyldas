@@ -18,8 +18,8 @@ def plot_catparams():
 
     exp = 'US_M36_SMOS40_DA_cal_scaled'
 
-    tc = LDAS_io().tilecoord
-    tg = LDAS_io().tilegrids
+    tc = LDAS_io().grid.tilecoord
+    tg = LDAS_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -82,8 +82,8 @@ def plot_rtm_parameters():
 
     experiments = ['US_M36_SMOS_DA_calibrated_scaled', 'US_M36_SMOS_DA_nocal_scaled_harmonic']
 
-    tc = LDAS_io().tilecoord
-    tg = LDAS_io().tilegrids
+    tc = LDAS_io().grid.tilecoord
+    tg = LDAS_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -152,8 +152,8 @@ def plot_rtm_parameter_differences():
 
     outpath = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters\differences'
 
-    tc = LDAS_io().tilecoord
-    tg = LDAS_io().tilegrids
+    tc = LDAS_io().grid.tilecoord
+    tg = LDAS_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -233,9 +233,9 @@ def plot_ease_img(data,tag,
 
     grid = EASE2()
 
-    tc = LDAS_io().tilecoord
+    tc = LDAS_io().grid.tilecoord
 
-    lons,lats = np.meshgrid(grid.londim,grid.latdim)
+    lons,lats = np.meshgrid(grid.ease_lons, grid.ease_lats)
 
     img = np.empty(lons.shape, dtype='float32')
     img.fill(None)

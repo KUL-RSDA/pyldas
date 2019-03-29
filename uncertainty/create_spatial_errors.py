@@ -26,13 +26,13 @@ def run():
     angles = np.array([40.,])
     orbits = ['A', 'D']
 
-    tiles = io.tilecoord['tile_id'].values.astype('int32')
-    ind_lat = io.tilecoord.loc[:, 'j_indg'].values - io.tilegrids.loc['domain', 'j_offg']
-    ind_lon = io.tilecoord.loc[:, 'i_indg'].values - io.tilegrids.loc['domain', 'i_offg']
+    tiles = io.grid.tilecoord['tile_id'].values.astype('int32')
+    ind_lat = io.grid.tilecoord.loc[:, 'j_indg'].values - io.grid.tilegrids.loc['domain', 'j_offg']
+    ind_lon = io.grid.tilecoord.loc[:, 'i_indg'].values - io.grid.tilegrids.loc['domain', 'i_offg']
 
     template = pd.DataFrame(columns=dtype.names, index=tiles).astype('float32')
-    template['lon'] = io.tilecoord['com_lon'].values.astype('float32')
-    template['lat'] = io.tilecoord['com_lat'].values.astype('float32')
+    template['lon'] = io.grid.tilecoord['com_lon'].values.astype('float32')
+    template['lat'] = io.grid.tilecoord['com_lat'].values.astype('float32')
 
     modes = np.array([0, 0])
     sdate = np.array([2010, 1, 1, 0, 0])

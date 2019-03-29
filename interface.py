@@ -45,10 +45,6 @@ class LDAS_io(object):
         Dictionary holding the path information for the specified exp/domain
     obsparam : pd.DataFrame
         Metadata about observations
-    tilecoord : pd.DataFrame
-        Metadata information for the tile coordinates of a particular LDAS experiment
-    tilegrids : pd.DataFrame
-        Metadata information for the tile grids of a particular LDAS experiment
     param : str
         Name of the parameter for which data is loaded
     files : np.array
@@ -71,10 +67,10 @@ class LDAS_io(object):
         self.paths = paths(exp=exp, domain=domain)
 
         self.obsparam = self.read_obsparam()
-        self.tilecoord = self.read_params('tilecoord')
-        self.tilegrids = self.read_params('tilegrids')
 
-        self.grid = EASE2(tilecoord=self.tilecoord, tilegrids=self.tilegrids)
+        tilecoord = self.read_params('tilecoord')
+        tilegrids = self.read_params('tilegrids')
+        self.grid = EASE2(tilecoord, tilegrids)
 
         self.param = param
         if param is not None:
@@ -289,7 +285,7 @@ class LDAS_io(object):
                 length = hdr[1]
         else:
             if length is None:
-                length = len(self.tilecoord)
+                length = len(self.grid.tilecoord)
 
         if loc is None:
             data = pd.DataFrame(columns=dtype.names, index=np.arange(length))
@@ -591,16 +587,16 @@ class LDAS_io(object):
         if date_to is not None:
             dates = dates[dates <= pd.to_datetime(date_to)]
 
-        filelons = np.sort(self.tilecoord.groupby('i_indg').first()['com_lon'])
-        filelats = np.sort(self.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
+        filelons = np.sort(self.grid.tilecoord.groupby('i_indg').first()['com_lon'])
+        filelats = np.sort(self.grid.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
 
         # Clip region based on specified coordinate boundaries
-        ind_img = self.tilecoord[(self.tilecoord['com_lon']>=lonmin)&(self.tilecoord['com_lon']<=lonmax)&
-                                 (self.tilecoord['com_lat']<=latmax)&(self.tilecoord['com_lat']>=latmin)].index
-        lonmin = self.tilecoord.loc[ind_img, 'com_lon'].values.min()
-        lonmax = self.tilecoord.loc[ind_img, 'com_lon'].values.max()
-        latmin = self.tilecoord.loc[ind_img, 'com_lat'].values.min()
-        latmax = self.tilecoord.loc[ind_img, 'com_lat'].values.max()
+        ind_img = self.grid.tilecoord[(self.grid.tilecoord['com_lon']>=lonmin)&(self.grid.tilecoord['com_lon']<=lonmax)&
+                                 (self.grid.tilecoord['com_lat']<=latmax)&(self.grid.tilecoord['com_lat']>=latmin)].index
+        lonmin = self.grid.tilecoord.loc[ind_img, 'com_lon'].values.min()
+        lonmax = self.grid.tilecoord.loc[ind_img, 'com_lon'].values.max()
+        latmin = self.grid.tilecoord.loc[ind_img, 'com_lat'].values.min()
+        latmax = self.grid.tilecoord.loc[ind_img, 'com_lat'].values.max()
         lons = filelons[(filelons >= lonmin) & (filelons <= lonmax)]
         lats = filelats[(filelats >= latmin) & (filelats <= latmax)]
         i_offg_2 = np.where(filelons >= lonmin)[0][0]
@@ -642,14 +638,14 @@ class LDAS_io(object):
 
             if self.param == 'ObsFcstAna':
                 img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
-                ind_lat = self.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.tilegrids.loc['domain','j_offg'] - j_offg_2
-                ind_lon = self.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.tilegrids.loc['domain','i_offg'] - i_offg_2
+                ind_lat = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
+                ind_lon = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
                 ind_spc = data['obs_species'].values - 1
 
             else:
                 img = np.full((len(lats),len(lons)), -9999., dtype='float32')
-                ind_lat = self.tilecoord.loc[ind_img, 'j_indg'].values - self.tilegrids.loc['domain','j_offg'] - j_offg_2
-                ind_lon = self.tilecoord.loc[ind_img, 'i_indg'].values - self.tilegrids.loc['domain','i_offg'] - i_offg_2
+                ind_lat = self.grid.tilecoord.loc[ind_img, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
+                ind_lon = self.grid.tilecoord.loc[ind_img, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
 
             for var in variables:
                 # replace NaN values with the default -9999. fill Value

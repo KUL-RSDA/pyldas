@@ -23,8 +23,8 @@ def scatterplot_RTMparam_incr_innov_diff():
     params_cal = LDAS_io(exp='US_M36_SMOS_DA_calibrated_scaled').read_params('RTMparam')
     params_uncal = LDAS_io(exp='US_M36_SMOS_DA_nocal_scaled_harmonic').read_params('RTMparam')
 
-    tc = LDAS_io().tilecoord
-    tg = LDAS_io().tilegrids
+    tc = LDAS_io().grid.tilecoord
+    tg = LDAS_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain', 'i_offg']  # col / lon
     tc.j_indg -= tg.loc['domain', 'j_offg']  # row / lat

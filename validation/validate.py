@@ -64,8 +64,8 @@ def filter_diagnostics_evaluation():
             'incr_rzexc_mean','incr_rzexc_var',
             'incr_srfexc_mean','incr_srfexc_var']
 
-    lons = np.unique(cal_DA_clim_innov.tilecoord['com_lon'].values)
-    lats = np.unique(cal_DA_clim_innov.tilecoord['com_lat'].values)[::-1]
+    lons = np.unique(cal_DA_clim_innov.grid.tilecoord['com_lon'].values)
+    lats = np.unique(cal_DA_clim_innov.grid.tilecoord['com_lat'].values)[::-1]
 
     species = cal_DA_clim_innov.timeseries['species'].values
 
@@ -113,8 +113,8 @@ def insitu_evaluation():
 
     t_ana = pd.DatetimeIndex(LDAS_io('ObsFcstAna', 'US_M36_SMOS40_DA_cal_scaled').timeseries.time.values).sort_values()
 
-    ismn = ISMN_io(col_offs=noDA.tilegrids.loc['domain','i_offg'],
-                   row_offs=noDA.tilegrids.loc['domain','j_offg'])
+    ismn = ISMN_io(col_offs=noDA.grid.tilegrids.loc['domain','i_offg'],
+                   row_offs=noDA.grid.tilegrids.loc['domain','j_offg'])
 
     runs = ['noDA', 'DA_const_err','DA_varia_err']
     tss = [noDA.timeseries, DA_const_err.timeseries, DA_varia_err.timeseries]
@@ -179,8 +179,8 @@ def Tb_evaluation():
     DA_const_err = LDAS_io('ObsFcstAna', 'US_M36_SMOS40_DA_cal_scaled')
     DA_varia_err = LDAS_io('ObsFcstAna', 'US_M36_SMOS40_DA_cal_scl_errfile')
 
-    ismn = ISMN_io(col_offs=DA_const_err.tilegrids.loc['domain','i_offg'],
-                   row_offs=DA_const_err.tilegrids.loc['domain','j_offg'])
+    ismn = ISMN_io(col_offs=DA_const_err.grid.tilegrids.loc['domain','i_offg'],
+                   row_offs=DA_const_err.grid.tilegrids.loc['domain','j_offg'])
 
     for i, (meta, ts_insitu) in enumerate(ismn.iter_stations()):
 
@@ -222,8 +222,8 @@ def TCA_insitu_evaluation():
     ascat = HSAF_io()
     gpi_list = pd.read_csv(r"D:\data_sets\ASCAT\warp5_grid\pointlist_warp_conus.csv",index_col=0)
 
-    ismn = ISMN_io(col_offs=noDA.tilegrids.loc['domain', 'i_offg'],
-                   row_offs=noDA.tilegrids.loc['domain', 'j_offg'])
+    ismn = ISMN_io(col_offs=noDA.grid.tilegrids.loc['domain', 'i_offg'],
+                   row_offs=noDA.grid.tilegrids.loc['domain', 'j_offg'])
 
     runs = ['noDA', 'DA_const_err', 'DA_varia_err']
     tss = [noDA.timeseries, DA_const_err.timeseries, DA_varia_err.timeseries]
