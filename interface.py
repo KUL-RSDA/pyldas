@@ -82,16 +82,19 @@ class LDAS_io(object):
 
             self.files = find_files(path, param)
 
-            if self.files[0].find('images.nc') == -1:
+            ind = [i for i,f in enumerate(self.files) if f.find(param + '_images.nc') != -1]
+            if len(ind) == 0:
                 logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
             else:
-                self.images = xr.open_dataset(self.files[0])
-                self.files = self.files[1::]
-                if self.files[0].find('timeseries.nc') == -1:
-                    logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
-                else:
-                    self.timeseries = xr.open_dataset(self.files[0])
-                    self.files = self.files[1::]
+                self.images = xr.open_dataset(self.files[ind[0]])
+                self.files = np.delete(self.files, ind[0])
+
+            ind = [i for i, f in enumerate(self.files) if f.find(param + '_timeseries.nc') != -1]
+            if len(ind) == 0:
+                logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
+            else:
+                self.timeseries = xr.open_dataset(self.files[ind[0]])
+                self.files = np.delete(self.files, ind[0])
 
             self.files.sort()
             self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
