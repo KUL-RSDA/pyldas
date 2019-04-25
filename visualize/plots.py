@@ -4,13 +4,17 @@ import os
 import pandas as pd
 import numpy as np
 
+import platform
+if platform.system() in ['Linux', 'Darwin']:
+    import matplotlib
+    matplotlib.use("TkAgg")
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
 from pyldas.grids import EASE2
 
 from pyldas.interface import LDAS_io
-
 
 def plot_catparams():
 
