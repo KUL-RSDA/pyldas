@@ -69,7 +69,7 @@ class LDAS_io(object):
         try:
             self.obsparam = self.read_obsparam()
         except:
-            'No obsparam file. This is a model-only run.'
+            logging.info('No obsparam file. This is a model-only (No DA) run.')
 
         tilecoord = self.read_params('tilecoord')
         tilegrids = self.read_params('tilegrids')
