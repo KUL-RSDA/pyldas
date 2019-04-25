@@ -12,13 +12,15 @@ if platform.system() in ['Linux', 'Darwin']:
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
-from pyldas.grids import EASE2
-
 from pyldas.interface import LDAS_io
+from pyldas.paths import paths
+
 
 def plot_catparams():
 
-    outpath = r'D:\work\LDAS\2018-01_catparams'
+    outpath = paths().plots / 'catparams'
+    if not outpath.exists():
+        outpath.mkdir(parents=True)
 
     exp = 'US_M36_SMOS40_DA_cal_scaled'
 
@@ -46,7 +48,7 @@ def plot_catparams():
 
     for param in params:
 
-        fname = os.path.join(outpath, param + '.png')
+        fname = outpath / (param + '.png')
 
         img = np.full(lons.shape, np.nan)
         img[tc.j_indg.values, tc.i_indg.values] = params[param].values
@@ -82,7 +84,7 @@ def plot_catparams():
 
 def plot_rtm_parameters():
 
-    root = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters'
+    root = paths().plots / 'RTM_parameters'
 
     experiments = ['US_M36_SMOS_DA_calibrated_scaled', 'US_M36_SMOS_DA_nocal_scaled_harmonic']
 
@@ -108,15 +110,15 @@ def plot_rtm_parameters():
 
     for exp in experiments:
 
-        outpath = os.path.join(root,exp)
-        if not os.path.exists(outpath):
-            os.makedirs(outpath)
+        outpath = root / exp
+        if not outpath.exists:
+            outpath.mkdir(exists=True)
 
         params = LDAS_io(exp=exp).read_params('RTMparam')
 
         for param in params:
 
-            fname = os.path.join(outpath, param + '.png')
+            fname = outpath / (param + '.png')
 
             img = np.full(lons.shape, np.nan)
             img[tc.j_indg.values, tc.i_indg.values] = params[param].values
@@ -154,7 +156,9 @@ def plot_rtm_parameters():
 
 def plot_rtm_parameter_differences():
 
-    outpath = r'C:\Users\u0116961\Documents\work\LDASsa\2018-02_scaling\RTM_parameters\differences'
+    outpath = paths().plots / 'RTM_parameters' / 'differences'
+    if not outpath.exists:
+        outpath.mkdir(exists=True)
 
     tc = LDAS_io().grid.tilecoord
     tg = LDAS_io().grid.tilegrids
@@ -188,7 +192,7 @@ def plot_rtm_parameter_differences():
         else:
             cbrange = (-1, 1)
 
-        fname = os.path.join(outpath, param + '.png')
+        fname = outpath / (param + '.png')
 
         img = np.full(lons.shape, np.nan)
         img[tc.j_indg.values, tc.i_indg.values] = params_cal[param].values - params_uncal[param].values
@@ -235,11 +239,11 @@ def plot_ease_img(data,tag,
                   title='',
                   fontsize=20):
 
-    grid = EASE2()
+    io = LDAS_io()
 
-    tc = LDAS_io().grid.tilecoord
+    tc = io.grid.tilecoord
 
-    lons,lats = np.meshgrid(grid.ease_lons, grid.ease_lats)
+    lons,lats = np.meshgrid(io.grid.ease_lons, io.grid.ease_lats)
 
     img = np.empty(lons.shape, dtype='float32')
     img.fill(None)
@@ -250,7 +254,7 @@ def plot_ease_img(data,tag,
     img[ind_lat,ind_lon] = data[tag]
     img_masked = np.ma.masked_invalid(img)
 
-    f = plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
 
     m = Basemap(projection='mill',
                 llcrnrlat=llcrnrlat,
@@ -279,6 +283,7 @@ def plot_ease_img(data,tag,
     plt.tight_layout()
     plt.show()
 
+
 def plot_grid_coord_indices():
 
     io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS40_noDA_cal_scaled')
@@ -286,7 +291,7 @@ def plot_grid_coord_indices():
     lats = io.images.lat.values
     lons = io.images.lon.values
 
-    f = plt.figure(figsize=(10, 5))
+    plt.figure(figsize=(10, 5))
 
     llcrnrlat = 24
     urcrnrlat = 51
@@ -336,10 +341,10 @@ def plot_model_image():
     io = LDAS_io('xhourly')
     img = io.read_image(2011, 4, 20, 10, 30)
 
-    tag = 'precipitation_total_surface_flux'
+    # tag = 'precipitation_total_surface_flux'
     tag = 'snow_mass'
-    cbrange = (0,0.0001)
-    cbrange = (0,0.6)
+    # cbrange = (0,0.0001)
+    # cbrange = (0,0.6)
     cbrange = (0,100)
 
     plot_ease_img(img, tag, cbrange=cbrange)
@@ -474,11 +479,6 @@ def plot_fcst_uncertainties():
 
     plt.tight_layout()
     plt.show()
-
-# def plot_obs_fcst_ts():
-#
-    # io = LDAS_io('ObsFcstAna', 'US_M36_SMOS40_noDA_cal_scaled')
-
 
 
 

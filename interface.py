@@ -1,5 +1,4 @@
 
-import os
 import logging
 
 import numpy as np
@@ -12,7 +11,6 @@ from collections import OrderedDict
 from pyldas.grids import EASE2
 
 from pyldas.templates import get_template
-from pyldas.functions import find_files, walk_up_folder
 from pyldas.paths import paths
 
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
@@ -38,6 +36,8 @@ class LDAS_io(object):
         experiment name (appended to root path)
     domain : string
         domain name (appended to experiment path)
+    root : pathlib.Path
+        root path to the experiment directory
 
     Attributes
     ----------
@@ -62,9 +62,10 @@ class LDAS_io(object):
     def __init__(self,
                  param=None,
                  exp=None,
-                 domain=None):
+                 domain=None,
+                 root=None):
 
-        self.paths = paths(exp=exp, domain=domain)
+        self.paths = paths(exp=exp, domain=domain, root=root)
 
         self.obsparam = self.read_obsparam()
 
@@ -76,28 +77,24 @@ class LDAS_io(object):
         if param is not None:
 
             if param == 'xhourly':
-                path = self.paths.__getattribute__('cat')
+                path = self.paths.cat
             else:
-                path = self.paths.__getattribute__('exp_root')
+                path = self.paths.exp_root
 
-            self.files = find_files(path, param)
-
-            ind = [i for i,f in enumerate(self.files) if f.find(param + '_images.nc') != -1]
-            if len(ind) == 0:
+            nc_file = list(path.glob('**/*' + param + '*images.nc'))
+            if len(nc_file) == 0:
                 logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
             else:
-                self.images = xr.open_dataset(self.files[ind[0]])
-                self.files = np.delete(self.files, ind[0])
+                self.images = xr.open_dataset(nc_file[0])
 
-            ind = [i for i, f in enumerate(self.files) if f.find(param + '_timeseries.nc') != -1]
-            if len(ind) == 0:
+            nc_file = list(path.glob('**/*' + param + '*timeseries.nc'))
+            if len(nc_file) == 0:
                 logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
             else:
-                self.timeseries = xr.open_dataset(self.files[ind[0]])
-                self.files = np.delete(self.files, ind[0])
+                self.timeseries = xr.open_dataset(nc_file[0])
 
-            self.files.sort()
-            self.dates = pd.to_datetime([f[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+            self.files = np.sort(list(path.glob('**/*' + param + '*.bin')))
+            self.dates = pd.to_datetime([f.name[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
 
             # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
             # if self.param == 'xhourly':
@@ -109,7 +106,7 @@ class LDAS_io(object):
     def read_obsparam(self):
         """ Read the 'obsparam' file. """
 
-        fp = open(find_files(self.paths.rc_out, 'obsparam'))
+        fp = open(list(self.paths.rc_out.glob('**/*obsparam*'))[0])
 
         lines = fp.readlines()[1::]
         n_lines = len(lines)
@@ -272,7 +269,7 @@ class LDAS_io(object):
 
         """
 
-        if not os.path.isfile(fname):
+        if not fname.exists():
             logging.warning('file "', fname, '" not found.')
             return None
 
@@ -329,7 +326,7 @@ class LDAS_io(object):
         """ Read parameter files (tilegrids, tilecoord, RTMparam, catparam"""
 
         if fname is None:
-            fname = find_files(self.paths.rc_out, param)
+            fname = list(self.paths.rc_out.glob('**/*' + param + '*'))[0]
 
         reg_ftags = False if param == 'tilegrids' else True
 
@@ -422,7 +419,7 @@ class LDAS_io(object):
         # Otherwise, read from fortran binary
         else:
             datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
-            fname = [f for f in self.files if f.find(datestr) != -1]
+            fname = [f for f in self.files if f.name.find(datestr) != -1]
 
             if len(fname) == 0:
                 logging.warning('No files found for: "' + datestr + '".')
@@ -568,8 +565,7 @@ class LDAS_io(object):
 
         """
 
-        out_path = walk_up_folder(self.files[0],3)
-        out_file = os.path.join(out_path,self.param + '_images.nc')
+        out_file = self.files[0].parents[2] / (self.param + '_images.nc')
 
         # remove file if it already exists
         if hasattr(self,'images'):
@@ -578,7 +574,7 @@ class LDAS_io(object):
                 return
             else:
                 delattr(self, 'images')
-                os.remove(out_file)
+                out_file.unlink()
 
         # get variable names from fortran reader template
         variables = get_template(self.param)[0].names

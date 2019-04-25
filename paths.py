@@ -1,6 +1,7 @@
 
-import os
+import getpass
 import platform
+from pathlib import Path
 
 class paths(object):
     """
@@ -8,7 +9,7 @@ class paths(object):
 
     Parameters
     ----------
-    root : string
+    root : pathlib.Path
         root path to the experiment directory
     exp : string
         experiment name (appended to root path)
@@ -37,15 +38,16 @@ class paths(object):
     def __init__(self, root=None, exp=None, domain=None):
 
         if root is None:
-            if platform.system() == 'Windows':
-                # default path for local copies on a windows machine
-                self.root = os.path.join('D:', 'data_sets', 'LDAS_runs')
-            elif platform.system() == 'Darwin':
-                # default path for local copies on a Mac
-                self.root = os.path.join('/', 'data_sets', 'LDAS_runs')
-            else:
+            root = 'D:' if platform.system() == 'Windows' else '/'
+            uid = getpass.getuser()
+            if uid[:3] == 'vsc':
                 # default path on the HPC
-                self.root = os.path.join('/', 'scratch', 'leuven', '320', 'vsc32046', 'output', 'TEST_RUNS')
+                self.root = Path(root) / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'TEST_RUNS'
+            else:
+                # default path on local machines
+                self.root = Path(root) / 'data_sets' / 'LDAS_runs'
+        else:
+            self.root = Path(root)
 
         # default experiment name
         if exp is None:
@@ -55,11 +57,12 @@ class paths(object):
         if domain is None:
             domain = 'SMAP_EASEv2_M36_US'
 
-        self.exp_root = os.path.join(self.root,exp,'output',domain)
+        self.exp_root = self.root / exp / 'output' / domain
 
-        self.ana = os.path.join(self.exp_root,'ana')
-        self.cat = os.path.join(self.exp_root,'cat')
-        self.rc_out = os.path.join(self.exp_root,'rc_out')
-        self.rs = os.path.join(self.exp_root,'rs')
+        self.ana = self.exp_root / 'ana'
+        self.cat = self.exp_root / 'cat'
+        self.rc_out = self.exp_root / 'rc_out'
+        self.rs = self.exp_root / 'rs'
 
-        self.plots = os.path.join(self.exp_root,'plots')
+        # Probably not a good location, but OK for a default option
+        self.plots = self.exp_root / 'plots'
