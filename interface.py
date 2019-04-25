@@ -66,7 +66,10 @@ class LDAS_io(object):
 
         self.paths = paths(exp=exp, domain=domain)
 
-        self.obsparam = self.read_obsparam()
+        try:
+            self.obsparam = self.read_obsparam()
+        except:
+            logging.info('No obsparam file. This is a model-only (No DA) run.')
 
         tilecoord = self.read_params('tilecoord')
         tilegrids = self.read_params('tilegrids')
