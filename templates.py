@@ -309,8 +309,7 @@ def template_xhourly():
 
 def template_smosL4SMaup():
     """"
-    Template for reading xhourly catchment output files
-    TODO Include the possibility to specify the Collection ID. Currently: 8 / tavg
+    Template for reading smos L4 soil moisture DA output
 
     """
 
