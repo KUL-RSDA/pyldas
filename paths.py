@@ -55,7 +55,12 @@ class paths(object):
 
         # default domain name
         if domain is None:
-            domain = 'SMAP_EASEv2_M36_US'
+            domains = list(self.root.glob(exp+'/output/*'))
+            if len(domains) != 1:
+                logging.error('Domain could not be identified.')
+                raise
+            else:
+                domain = domains[0].name
 
         self.exp_root = self.root / exp / 'output' / domain
 
