@@ -589,20 +589,26 @@ class LDAS_io(object):
         if date_to is not None:
             dates = dates[dates <= pd.to_datetime(date_to)]
 
-        filelons = np.sort(self.grid.tilecoord.groupby('i_indg').first()['com_lon'])
-        filelats = np.sort(self.grid.tilecoord.groupby('j_indg').first()['com_lat'])[::-1]
+        domainlons = self.grid.ease_lons[np.min(self.grid.tilecoord.i_indg):(np.max(self.grid.tilecoord.i_indg)+1)]
+        domainlats = self.grid.ease_lats[np.min(self.grid.tilecoord.j_indg):(np.max(self.grid.tilecoord.j_indg)+1)]
+
+        lonmin = domainlons[np.argmin(np.abs(domainlons-lonmin))]
+        lonmax = domainlons[np.argmin(np.abs(domainlons-lonmax))]
+        latmin = domainlats[np.argmin(np.abs(domainlats-latmin))]
+        latmax = domainlats[np.argmin(np.abs(domainlats-latmax))]
+
+        # Use grid lon lat to avoid rounding issues
+        tmp_tilecoord = self.grid.tilecoord.copy()
+        tmp_tilecoord['com_lon'] = self.grid.ease_lons[self.grid.tilecoord.i_indg]
+        tmp_tilecoord['com_lat'] = self.grid.ease_lats[self.grid.tilecoord.j_indg]
 
         # Clip region based on specified coordinate boundaries
-        ind_img = self.grid.tilecoord[(self.grid.tilecoord['com_lon']>=lonmin)&(self.grid.tilecoord['com_lon']<=lonmax)&
-                                 (self.grid.tilecoord['com_lat']<=latmax)&(self.grid.tilecoord['com_lat']>=latmin)].index
-        lonmin = self.grid.tilecoord.loc[ind_img, 'com_lon'].values.min()
-        lonmax = self.grid.tilecoord.loc[ind_img, 'com_lon'].values.max()
-        latmin = self.grid.tilecoord.loc[ind_img, 'com_lat'].values.min()
-        latmax = self.grid.tilecoord.loc[ind_img, 'com_lat'].values.max()
-        lons = filelons[(filelons >= lonmin) & (filelons <= lonmax)]
-        lats = filelats[(filelats >= latmin) & (filelats <= latmax)]
-        i_offg_2 = np.where(filelons >= lonmin)[0][0]
-        j_offg_2 = np.where(filelats <= latmax)[0][0]
+        ind_img = self.grid.tilecoord[(tmp_tilecoord['com_lon']>=lonmin)&(tmp_tilecoord['com_lon']<=lonmax)&
+                                 (tmp_tilecoord['com_lat']<=latmax)&(tmp_tilecoord['com_lat']>=latmin)].index
+        lons = domainlons[(domainlons >= lonmin) & (domainlons <= lonmax)]
+        lats = domainlats[(domainlats >= latmin) & (domainlats <= latmax)]
+        i_offg_2 = np.where(domainlons >= lonmin)[0][0]
+        j_offg_2 = np.where(domainlats <= latmax)[0][0]
 
         # Innovation file data has an additional 'species' dimension
         if self.param == 'ObsFcstAna':
