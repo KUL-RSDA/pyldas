@@ -83,12 +83,10 @@ It is possible to specify a spatial / temporal subregion, if files are getting t
 This routine creates a NetCDF file called 'xhourly_images.nc' in the ens_avg directory where your parameter files are located. This file is stored using **image chunks**, which means that it is very fast for reading individual spatial images, but terribly slow in extracting time series... Therefore, you should use the so-called netcdf kitchen sink to re-chunk the **image cube** into a **time series cube**. This is a command line programm, that is pre-installed on the HPC, which you will need to run there because your local machine will not have enough memory. The general terminal command (obviously to be executed from the directory where the xxx_images.nc is located) is:
 
 ```
-ncks -4 -L 4 --cnk_dmn time,20456 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
+ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
 ```
 
-where the number after the time dimension should match the number of available images, i.e. the time dimension in the xxx_images.nc file (or the number of available xhourly files, in this case). Also, on the HPC, this needs to be executed in the queue. 
-
-Conveniently, there is a batch file available that automatically calls python, creates the image cubes and then rechunks them into time series cubes for as many parameters as you want. 
+On the HPC, this needs to be executed in the queue. Conveniently, there is a batch file available that automatically calls python, creates the image cubes and then rechunks them into time series cubes for as many parameters as you want. 
 
 This batch files is located at **pyldas/batchscripts/create_timeseries.pbs** and called simply as:
 
