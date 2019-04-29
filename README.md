@@ -12,7 +12,7 @@ It is therefore recommended to clone pyldas into this directory (your VSC number
 
 pyldas requires **python 3** and the following python packages, which can be installed using e.g. (mini)conda:
 
-`numpy, pandas, xarray, netCDF4, matplotlib, Basemap`
+`numpy, pandas, xarray, netCDF4, matplotlib, Basemap, nco`
 
 ## Default directories
 
