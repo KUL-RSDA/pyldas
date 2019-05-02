@@ -1,4 +1,5 @@
 
+import logging
 import getpass
 import platform
 from pathlib import Path
@@ -56,9 +57,10 @@ class paths(object):
         # default domain name
         if domain is None:
             domains = list(self.root.glob(exp+'/output/*'))
+            domains = [d for d in domains if d.name[0] != '.'] # remove hidden folders/files (dot-files)
             if len(domains) != 1:
                 logging.error('Domain could not be identified.')
-                raise
+                return
             else:
                 domain = domains[0].name
 

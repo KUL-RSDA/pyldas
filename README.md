@@ -14,6 +14,8 @@ pyldas requires **python 3** and the following python packages, which can be ins
 
 `numpy, pandas, xarray, netCDF4, matplotlib, Basemap, nco`
 
+(the nco package requires the conda-forge channel, i.e. conda config --add channels conda-forge)
+
 ## Default directories
 
 pyldas assumes a default directory as root directory where your LDASsa experiments are stored. You can, however, specify any other root directory when calling the pyldas interface (see later).
