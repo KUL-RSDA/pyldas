@@ -629,9 +629,9 @@ class LDAS_io(object):
                 return
 
             spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
-            dimensions = OrderedDict([('species',spc), ('lat',lats), ('lon',lons), ('time',dates)])
+            dimensions = OrderedDict([('time',dates), ('species',spc), ('lat',lats), ('lon',lons)])
         else:
-            dimensions = OrderedDict([('lat',lats), ('lon',lons), ('time',dates)])
+            dimensions = OrderedDict([('time',dates), ('lat',lats), ('lon',lons)])
 
         dataset = self.ncfile_init(out_file, dimensions, variables)
 
@@ -662,10 +662,10 @@ class LDAS_io(object):
 
                 if self.param == 'ObsFcstAna':
                     img[ind_spc,ind_lat,ind_lon] = tmp_img
-                    dataset.variables[var][:,:,:,i] = img
+                    dataset.variables[var][i,:,:,:] = img
                 else:
                     img[ind_lat,ind_lon] = tmp_img
-                    dataset.variables[var][:,:,i] = img
+                    dataset.variables[var][i,:,:] = img
 
         # Save file to disk and loat it as xarray Dataset into the class variable space
         dataset.close()
