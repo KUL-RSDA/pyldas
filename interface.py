@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+from pathlib import Path
+
 from netCDF4 import Dataset, date2num
 from collections import OrderedDict
 
@@ -84,20 +86,27 @@ class LDAS_io(object):
             else:
                 path = self.paths.exp_root
 
-            nc_file = list(path.glob('**/*' + param + '*images.nc'))
+            nc_file = list(path.glob('**/*' + param + '_images.nc'))
             if len(nc_file) == 0:
                 logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
             else:
                 self.images = xr.open_dataset(nc_file[0])
 
-            nc_file = list(path.glob('**/*' + param + '*timeseries.nc'))
+            nc_file = list(path.glob('**/*' + param + '_timeseries.nc'))
             if len(nc_file) == 0:
                 logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
             else:
                 self.timeseries = xr.open_dataset(nc_file[0])
 
-            self.files = np.sort(list(path.glob('**/*' + param + '*.bin')))
-            self.dates = pd.to_datetime([f.name[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+            self.files = np.sort(list(path.glob('**/*' + param + '.*.bin')))
+            if param == 'hscale':
+                self.pentads = np.array([f.name[-6:-4] for f in self.files]).astype('int')
+                self.orbits = np.array([f.name[-9:-8] for f in self.files])
+            else:
+                self.dates = pd.to_datetime([f.name[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+
+            if param == 'ObsFcstAnaEns':
+                self.ens_id = np.array([f.name[-42:-38] for f in self.files]).astype('int')
 
             # TODO: Currently valid for 3-hourly data only! Times of the END of the 3hr periods are assigned!
             # if self.param == 'xhourly':
@@ -272,7 +281,7 @@ class LDAS_io(object):
 
         """
 
-        if not fname.exists():
+        if not Path(fname).exists():
             logging.warning('file "', fname, '" not found.')
             return None
 
@@ -346,7 +355,7 @@ class LDAS_io(object):
         return data
 
 
-    def read_scaling_parameters(self, pentad=1, fname=None, tile_id=None):
+    def read_scaling_parameters(self, pentad=1, fname=None, tile_id=None, sensor='SMAP'):
         """
         Class for reading scaling files. These hold the observation and model mean and standard deviation, and
         number of observations per per pentade.
@@ -368,13 +377,15 @@ class LDAS_io(object):
         """
         # TODO: WRONG TREATMENT OF ORBIT DIRECTION! A/D IS IN THE FILENAME BEFORE THE PENTADE!
 
-        dtype, hdr, length = get_template('scaling')
+        dtype, hdr, length = get_template('hscale', sensor=sensor)
 
         if tile_id is None:
             if fname is not None:
                 data = self.read_fortran_binary(fname, dtype, hdr=hdr, length=length)
             else:
                 data = self.read_fortran_binary(self.files[pentad], dtype, hdr=hdr, length=length)
+            # increase index to match tilecoord indices
+            data.index += 1
 
         else:
             pentads = np.arange(73)+1
@@ -388,7 +399,7 @@ class LDAS_io(object):
 
         return data
 
-    def read_image(self, yr, mo, da, hr, mi, species=None):
+    def read_image(self, yr=None, mo=None, da=None, hr=None, mi=None, species=None, ens_id=None, fname=None):
         """"
         Read an image for a given date/time(/species/subregion)
         If a netCDF file has been created with self.bin2netcdf, the image will be read from this file,
@@ -401,6 +412,11 @@ class LDAS_io(object):
         species : int
             If provided, only a specific species will be read
             No effect when reading fortran binaries!
+        ens_id : int
+            If provided, only a specific ensemble member will be read
+            No effect when reading fortran binaries!
+        fname: string
+            Direct input of the filename (instead of inferring from date/time information)
 
         Returns
         -------
@@ -414,23 +430,26 @@ class LDAS_io(object):
         # If netCDF file has been created/loaded, use xarray indexing functions
         if hasattr(self, 'images'):
             datestr = '%04i-%02i-%02i %02i:%02i' % (yr, mo, da, hr, mi)
+            tmp_img = self.images
             if species is not None:
-                img = self.images.sel(species=species, time=datestr).values
-            else:
-                img = self.images.sel(time=datestr).values
+                tmp_img = tmp_img.sel(species=species)
+            if ens_id is not None:
+                tmp_img = tmp_img.sel(ens_id=ens_id)
+            img = tmp_img.sel(time=datestr).values
 
         # Otherwise, read from fortran binary
         else:
-            datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
-            fname = [f for f in self.files if f.name.find(datestr) != -1]
+            if fname is None:
+                datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
+                fname = [f for f in self.files if f.name.find(datestr) != -1]
 
-            if len(fname) == 0:
-                logging.warning('No files found for: "' + datestr + '".')
-                return None
-            elif len(fname) > 1:
-                logging.warning('Multiple files found for: "' + datestr + '".')
-            else:
-                fname = fname[0]
+                if len(fname) == 0:
+                    logging.warning('No files found for: "' + datestr + '".')
+                    return None
+                elif len(fname) > 1:
+                    logging.warning('Multiple files found for: "' + datestr + '".')
+                else:
+                    fname = fname[0]
 
             img = self.read_fortran_binary(fname, self.dtype, hdr=self.hdr, length=self.length)
 
@@ -444,18 +463,20 @@ class LDAS_io(object):
 
         return img
 
-    def read_ts(self, param, col, row, species=None, lonlat=True):
+    def read_ts(self, param, col, row, species=None, ens_id=None, lonlat=True):
         """ Reads a time series from the netCDF time series chunked cube. """
 
         if lonlat is True:
             col, row = self.grid.lonlat2colrow(col, row, domain=True)
 
-        if species is None:
-            ts = self.timeseries[param][row,col,:].to_series()
-        else:
-            ts = self.timeseries[param].sel(species=species)[row,col,:].to_series()
+        tmp_ts = self.timeseries[param]
+        if species is not None:
+            tmp_ts = tmp_ts.sel(species=species)
+        if ens_id is not None:
+            tmp_ts = tmp_ts.sel(ens_id=ens_id)
 
-        return ts
+        return tmp_ts.isel(lat=row,lon=col).to_pandas()
+
 
     @staticmethod
     def write_fortran_block(fid, data):
@@ -520,8 +541,10 @@ class LDAS_io(object):
             ds.variables[dim][:] = dimensions[dim]
 
         # Coordinate attributes following CF-conventions
-        ds.variables['time'].setncatts({'long_name': 'time',
-                                        'units': timeunit})
+
+        if 'time' in dimensions:
+            ds.variables['time'].setncatts({'long_name': 'time',
+                                            'units': timeunit})
         ds.variables['lon'].setncatts({'long_name': 'longitude',
                                        'units':'degrees_east'})
         ds.variables['lat'].setncatts({'long_name': 'latitude',
@@ -544,7 +567,8 @@ class LDAS_io(object):
                    latmin=-90.,
                    latmax=90.,
                    lonmin=-180.,
-                   lonmax=180.):
+                   lonmax=180.,
+                   out_file=None):
 
         """"
         Convert fortran binary image into a netCDF data cube.
@@ -565,10 +589,13 @@ class LDAS_io(object):
             Lower longitude limit for which a netCDF image cube should be generated
         lonmax : float
             Upper longitude limit for which a netCDF image cube should be generated
+        out_file : string
+            Optional alternative path / filename for the created NetCDF image cube
 
         """
 
-        out_file = self.files[0].parents[2] / (self.param + '_images.nc')
+        if out_file is None:
+            out_file = self.files[0].parents[3] / (self.param + '_images.nc')
 
         # remove file if it already exists
         if hasattr(self,'images'):
@@ -580,14 +607,33 @@ class LDAS_io(object):
                 out_file.unlink()
 
         # get variable names from fortran reader template
-        variables = get_template(self.param)[0].names
+        if self.param == 'hscale':
+            variables = get_template(self.param)[0].names[3::]
+        else:
+            variables = get_template(self.param)[0].names
 
         # If specified, only generate netCDF file for specific date range
-        dates = self.dates
-        if date_from is not None:
-            dates = dates[dates >= pd.to_datetime(date_from)]
-        if date_to is not None:
-            dates = dates[dates <= pd.to_datetime(date_to)]
+        if self.param == 'hscale':
+            pentads = np.unique(self.pentads)
+            orbits = np.unique(self.orbits)
+        elif self.param == 'ObsFcstAnaEns':
+            files = self.files
+            dates = self.dates
+            ids = self.ens_id
+            if date_from is not None:
+                files = files[dates >= pd.to_datetime(date_from)]
+                ids = ids[dates >= pd.to_datetime(date_from)]
+                dates = dates[dates >= pd.to_datetime(date_from)]
+            if date_to is not None:
+                files = files[dates <= pd.to_datetime(date_to)]
+                ids = ids[dates <= pd.to_datetime(date_to)]
+                dates = dates[dates <= pd.to_datetime(date_to)]
+        else:
+            dates = self.dates
+            if date_from is not None:
+                dates = dates[dates >= pd.to_datetime(date_from)]
+            if date_to is not None:
+                dates = dates[dates <= pd.to_datetime(date_to)]
 
         domainlons = self.grid.ease_lons[np.min(self.grid.tilecoord.i_indg):(np.max(self.grid.tilecoord.i_indg)+1)]
         domainlats = self.grid.ease_lats[np.min(self.grid.tilecoord.j_indg):(np.max(self.grid.tilecoord.j_indg)+1)]
@@ -618,7 +664,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(dates)))
 
                 data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
-                data = data.loc[data.index.intersection(ind_img),:]
+                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
 
                 if len(data) == 0:
                     nodata.append(dt)
@@ -629,43 +675,130 @@ class LDAS_io(object):
                 return
 
             spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
-            dimensions = OrderedDict([('time',dates), ('species',spc), ('lat',lats), ('lon',lons)])
+            dimensions = OrderedDict([('time', dates), ('species', spc), ('lat', lats), ('lon', lons)])
+
+        # Innovation ensemble file data has an additional 'species' + 'ens_id' dimension
+        elif self.param == 'ObsFcstAnaEns':
+            # Remove dates which do not contain any data
+            nodata = list()
+            for i, fn in enumerate(files):
+                logging.info('%d / %d' % (i, len(files)))
+
+                data = self.read_image(fname=fn)
+                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates() # clip subregion
+
+                if len(data) == 0:
+                    nodata.append(i)
+
+            files = np.delete(files, nodata)
+            dates = np.delete(dates, nodata)
+            ids = np.delete(ids, nodata)
+
+            if len(files) == 0:
+                logging.warning('Images do not contain valid data.')
+                return
+
+            udates = dates.unique()
+            uids = np.unique(ids)
+
+            spc = pd.DataFrame(self.obsparam)['species'].values.astype('uint8')
+            dimensions = OrderedDict([('time', udates), ('ens_id', uids), ('species', spc), ('lat', lats), ('lon', lons)])
+        elif self.param == 'hscale':
+            dimensions = OrderedDict([('pentad', pentads), ('orbit', orbits), ('lat', lats), ('lon', lons)])
         else:
-            dimensions = OrderedDict([('time',dates), ('lat',lats), ('lon',lons)])
+            dimensions = OrderedDict([('time', dates), ('lat', lats), ('lon', lons)])
 
         dataset = self.ncfile_init(out_file, dimensions, variables)
 
-        for i,dt in enumerate(dates):
-            logging.info('%d / %d' % (i, len(dates)))
+        if self.param == 'hscale':
 
-            data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
-            data = data.loc[data.index.intersection(ind_img), :]
+            for i,(file, pentad, orbit) in enumerate(zip(self.files, self.pentads, self.orbits)):
 
-            if len(data) == 0:
-                continue
+                logging.info('%d / %d' % (i, len(self.files)))
 
-            if self.param == 'ObsFcstAna':
-                img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
+                data = self.read_scaling_parameters(fname=file)
+                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+
+                if len(data) == 0:
+                    continue
+
+                img = np.full((1, 1, len(lats), len(lons)), -9999., dtype='float32')
+                ind_pen = np.where(pentads==pentad)[0][0]
+                ind_orb = np.where(orbits==orbit)[0][0]
+                ind_lat = self.grid.tilecoord.loc[ind_img, 'j_indg'].values - self.grid.tilegrids.loc[
+                    'domain', 'j_offg'] - j_offg_2
+                ind_lon = self.grid.tilecoord.loc[ind_img, 'i_indg'].values - self.grid.tilegrids.loc[
+                    'domain', 'i_offg'] - i_offg_2
+
+                for var in variables:
+                    # replace NaN values with the default -9999. fill Value
+                    tmp_img = data[var].values.copy()
+                    np.place(tmp_img, np.isnan(tmp_img), -9999.)
+                    img[0, 0, ind_lat, ind_lon] = tmp_img
+                    dataset.variables[var][ind_pen, ind_orb, :, :] = img
+
+        elif self.param == 'ObsFcstAnaEns':
+
+            img = np.full((len(variables), len(udates), len(uids), len(spc), len(lats), len(lons)), -9999., dtype='float32')
+
+            for i,(fn,dt,ensid) in enumerate(zip(files,dates,ids)):
+
+                logging.info('%d / %d' % (i, len(files)))
+
+                data = self.read_image(fname=fn)
+                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+
+                if len(data) == 0:
+                    continue
+
+                ind_dt = np.where(udates==dt)[0][0]
+                ind_id = ensid
+                ind_spc = data['obs_species'].values - 1
                 ind_lat = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
                 ind_lon = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
-                ind_spc = data['obs_species'].values - 1
 
-            else:
-                img = np.full((len(lats),len(lons)), -9999., dtype='float32')
-                ind_lat = self.grid.tilecoord.loc[ind_img, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
-                ind_lon = self.grid.tilecoord.loc[ind_img, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
+                for j,var in enumerate(variables):
+                    # replace NaN values with the default -9999. fill Value
+                    tmp_img = data[var].values.copy()
+                    np.place(tmp_img, np.isnan(tmp_img), -9999.)
 
-            for var in variables:
-                # replace NaN values with the default -9999. fill Value
-                tmp_img = data[var].values.copy()
-                np.place(tmp_img, np.isnan(tmp_img), -9999.)
+                    img[j, ind_dt, ind_id, ind_spc, ind_lat, ind_lon] = tmp_img
+
+            for i,var in enumerate(variables):
+                dataset.variables[var][:,:,:,:,:] = img[i,:,:,:,:,:]
+
+        else:
+            for i,dt in enumerate(dates):
+                logging.info('%d / %d' % (i, len(dates)))
+
+                data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+
+                if len(data) == 0:
+                    continue
 
                 if self.param == 'ObsFcstAna':
-                    img[ind_spc,ind_lat,ind_lon] = tmp_img
-                    dataset.variables[var][i,:,:,:] = img
+                    img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
+                    ind_lat = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
+                    ind_lon = self.grid.tilecoord.loc[data['obs_tilenum'].values, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
+                    ind_spc = data['obs_species'].values - 1
+
                 else:
-                    img[ind_lat,ind_lon] = tmp_img
-                    dataset.variables[var][i,:,:] = img
+                    img = np.full((len(lats),len(lons)), -9999., dtype='float32')
+                    ind_lat = self.grid.tilecoord.loc[ind_img, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
+                    ind_lon = self.grid.tilecoord.loc[ind_img, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
+
+                for var in variables:
+                    # replace NaN values with the default -9999. fill Value
+                    tmp_img = data[var].values.copy()
+                    np.place(tmp_img, np.isnan(tmp_img), -9999.)
+
+                    if self.param == 'ObsFcstAna':
+                        img[ind_spc,ind_lat,ind_lon] = tmp_img
+                        dataset.variables[var][i,:,:,:] = img
+                    else:
+                        img[ind_lat,ind_lon] = tmp_img
+                        dataset.variables[var][i,:,:] = img
 
         # Save file to disk and loat it as xarray Dataset into the class variable space
         dataset.close()

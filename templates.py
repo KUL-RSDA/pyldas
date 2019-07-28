@@ -4,7 +4,7 @@ import numpy as np
 
 logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
-def get_template(param):
+def get_template(param, **kwargs):
     """
     Return templates for reading fortran binary files
 
@@ -34,11 +34,14 @@ def get_template(param):
     elif param == 'ObsFcstAna':
         dtype, hdr, length = template_ObsFcstAna()
 
+    elif param == 'ObsFcstAnaEns':
+        dtype, hdr, length = template_ObsFcstAnaEns()
+
     elif (param == 'xhourly')|(param=='ensstd'):
         dtype, hdr, length = template_xhourly()
 
-    elif param == 'scaling':
-        dtype, hdr, length = template_scaling()
+    elif param == 'hscale':
+        dtype, hdr, length = template_scaling(**kwargs)
 
     elif param == 'error':
         dtype, hdr, length = template_error_Tb40()
@@ -197,17 +200,19 @@ def template_error_Tb40():
     return dtype, hdr, length
 
 
-def template_scaling(sensor='SMOS'):
+def template_scaling(sensor='SMAP'):
     """ Template for reading scaling files. """
 
     # 23 header fields + 7 incidence angles
     # TODO: allow for a different number of inc. angles when using for SMAP (# angles on hdr pos 20)
-    hdr = 32
-    length = 19
 
     if sensor == 'SMOS':
+        hdr = 32
+        length = 19
         angles = [30,35,40,45,50,55,60]
     else:
+        hdr = 26
+        length = 19
         angles = [40,]
 
     dtype = np.dtype([('lon', '>f4'),('lat', '>f4'),('tile_id', '>i4')]+
@@ -286,6 +291,22 @@ def template_ObsFcstAna():
                       ('obs_fcstvar', '>f4'),
                       ('obs_ana', '>f4'),
                       ('obs_anavar', '>f4')])
+
+    return dtype, hdr, length
+
+def template_ObsFcstAnaEns():
+    """" Template for reading innovation files """
+
+    hdr = 11
+    length = None
+    dtype = np.dtype([('obs_ensmem', '>i4'),
+                      ('obs_species', '>i4'),
+                      ('obs_tilenum', '>i4'),
+                      ('obs_lon', '>f4'),
+                      ('obs_lat', '>f4'),
+                      ('obs_obs', '>f4'),
+                      ('obs_fcst', '>f4'),
+                      ('obs_ana', '>f4')])
 
     return dtype, hdr, length
 
