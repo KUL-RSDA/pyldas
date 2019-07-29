@@ -739,8 +739,6 @@ class LDAS_io(object):
 
         elif self.param == 'ObsFcstAnaEns':
 
-            img = np.full((len(variables), len(udates), len(uids), len(spc), len(lats), len(lons)), -9999., dtype='float32')
-
             for i,(fn,dt,ensid) in enumerate(zip(files,dates,ids)):
 
                 logging.info('%d / %d' % (i, len(files)))
@@ -759,13 +757,11 @@ class LDAS_io(object):
 
                 for j,var in enumerate(variables):
                     # replace NaN values with the default -9999. fill Value
+                    img = np.full((len(spc), len(lats), len(lons)), -9999., dtype='float32')
                     tmp_img = data[var].values.copy()
                     np.place(tmp_img, np.isnan(tmp_img), -9999.)
-
-                    img[j, ind_dt, ind_id, ind_spc, ind_lat, ind_lon] = tmp_img
-
-            for i,var in enumerate(variables):
-                dataset.variables[var][:,:,:,:,:] = img[i,:,:,:,:,:]
+                    img[ind_spc, ind_lat, ind_lon] = tmp_img
+                    dataset.variables[var][ind_dt, ind_id, :, :, :] = img
 
         else:
             for i,dt in enumerate(dates):
