@@ -299,11 +299,8 @@ def template_ObsFcstAnaEns():
 
     hdr = 11
     length = None
-    dtype = np.dtype([('obs_ensmem', '>i4'),
-                      ('obs_species', '>i4'),
+    dtype = np.dtype([('obs_species', '>i4'),
                       ('obs_tilenum', '>i4'),
-                      ('obs_lon', '>f4'),
-                      ('obs_lat', '>f4'),
                       ('obs_obs', '>f4'),
                       ('obs_fcst', '>f4'),
                       ('obs_ana', '>f4')])
