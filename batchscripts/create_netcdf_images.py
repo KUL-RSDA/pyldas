@@ -14,4 +14,4 @@ exp = sys.argv[2]
 domain = sys.argv[3]
 for param in sys.argv[4::]:
     io = LDAS_io(param=param, root=root, exp=exp, domain=domain)
-    io.bin2netcdf()
+    io.bin2netcdf(overwrite=True)

@@ -98,7 +98,11 @@ class LDAS_io(object):
             else:
                 self.timeseries = xr.open_dataset(nc_file[0])
 
-            self.files = np.sort(list(path.glob('**/*' + param + '.*.bin')))
+            if param == 'ObsFcstAna':
+                self.files = np.sort(list(path.glob('**/*' + param + '.*.bin')))
+            else:
+                self.files = np.sort(list(path.glob('**/*' + param + '*.bin')))
+
             if param == 'hscale':
                 self.pentads = np.array([f.name[-6:-4] for f in self.files]).astype('int')
                 self.orbits = np.array([f.name[-9:-8] for f in self.files])
@@ -664,7 +668,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(dates)))
 
                 data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
-                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+                data = data.loc[data.index.intersection(ind_img), :]
 
                 if len(data) == 0:
                     nodata.append(dt)
@@ -685,7 +689,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(files)))
 
                 data = self.read_image(fname=fn)
-                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates() # clip subregion
+                data = data.loc[data.index.intersection(ind_img), :] # clip subregion
 
                 if len(data) == 0:
                     nodata.append(i)
@@ -717,7 +721,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(self.files)))
 
                 data = self.read_scaling_parameters(fname=file)
-                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+                data = data.loc[data.index.intersection(ind_img), :]
 
                 if len(data) == 0:
                     continue
@@ -744,7 +748,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(files)))
 
                 data = self.read_image(fname=fn)
-                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+                data = data.loc[data.index.intersection(ind_img), :]
 
                 if len(data) == 0:
                     continue
@@ -768,7 +772,7 @@ class LDAS_io(object):
                 logging.info('%d / %d' % (i, len(dates)))
 
                 data = self.read_image(dt.year, dt.month, dt.day, dt.hour, dt.minute)
-                data = data.loc[data.index.intersection(ind_img), :].drop_duplicates()
+                data = data.loc[data.index.intersection(ind_img), :]
 
                 if len(data) == 0:
                     continue
