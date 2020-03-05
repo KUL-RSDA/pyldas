@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 import platform
-if platform.system() in ['Linux', 'Darwin']:
+if platform.system() in ['Linux']:
     import matplotlib
     matplotlib.use("TkAgg")
 

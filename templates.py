@@ -301,11 +301,26 @@ def template_ObsFcstAnaEns():
     length = None
     dtype = np.dtype([('obs_species', '>i4'),
                       ('obs_tilenum', '>i4'),
+                      # ('obs_lon', '>f4'),
+                      # ('obs_lat', '>f4'),
                       ('obs_obs', '>f4'),
                       ('obs_fcst', '>f4'),
                       ('obs_ana', '>f4')])
 
     return dtype, hdr, length
+
+# def template_ObsFcstAnaEns():
+#     """" Template for reading innovation files """
+#
+#     hdr = 11
+#     length = None
+#     dtype = np.dtype([('obs_species', '>i4'),
+#                       ('obs_tilenum', '>i4'),
+#                       ('obs_obs', '>f4'),
+#                       ('obs_fcst', '>f4'),
+#                       ('obs_ana', '>f4')])
+#
+#     return dtype, hdr, length
 
 def template_xhourly():
     """"

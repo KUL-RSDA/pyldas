@@ -110,10 +110,21 @@ class EASE2(object):
 
         return self.tilecoord.loc[ind_col & ind_row,'tile_id'].values[0]
 
-    def tileid2colrow(self, tile_id):
+    def colrow2tilenum(self, col, row):
 
-        col = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'i_indg'] - self.tilegrids.loc['domain','i_offg']).values[0]
-        row = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'j_indg'] - self.tilegrids.loc['domain','j_offg']).values[0]
+        ind_col = self.tilecoord['i_indg']-self.tilegrids.loc['domain','i_offg'] == col
+        ind_row = self.tilecoord['j_indg']-self.tilegrids.loc['domain','j_offg'] == row
+
+        return self.tilecoord.loc[ind_col & ind_row].index.values[0]
+
+    def tileid2colrow(self, tile_id, local_cs=True):
+
+        if local_cs is True:
+            col = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'i_indg'] - self.tilegrids.loc['domain','i_offg']).values[0]
+            row = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'j_indg'] - self.tilegrids.loc['domain','j_offg']).values[0]
+        else:
+            col = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'i_indg']).values[0]
+            row = (self.tilecoord.loc[self.tilecoord['tile_id']==tile_id, 'j_indg']).values[0]
 
         return col, row
 
@@ -140,7 +151,7 @@ class EASE2(object):
     def lonlat2tilenum(self, lon, lat):
         """" Get the (domain-based) tile number for a given lon/lat """
         col, row = self.lonlat2colrow(lon, lat)
-        tilenum = np.where((self.tilecoord['i_indg'] == col)&
-                           (self.tilecoord['j_indg'] == row))[0][0]
+        tilenum = np.where((self.tilecoord['i_indg'] - self.tilegrids.loc['domain','i_offg'] == col)&
+                           (self.tilecoord['j_indg'] - self.tilegrids.loc['domain','j_offg'] == row))[0][0]
         return tilenum + 1
 
