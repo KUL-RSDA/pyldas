@@ -240,8 +240,8 @@ class LDAS_io(object):
 
     def get_species(self, pol=None, orbit=None, ang=None):
 
-        pol = 1 if pol == 'H' else 2
-        orbit = 1 if orbit == 'A' else 2
+        pol = 1 if pol.upper() == 'H' else 2
+        orbit = 1 if orbit.upper() == 'A' else 2
 
         return self.obsparam.loc[(self.obsparam['pol'] == pol) & \
                                  (self.obsparam['orbit'] == orbit) & \
