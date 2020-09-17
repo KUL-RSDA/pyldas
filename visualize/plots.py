@@ -234,6 +234,7 @@ def plot_ease_img(data,tag,
                   figsize=(20,10),
                   cbrange=(-20,20),
                   cmap='jet',
+                  plot_cb=True,
                   title='',
                   fontsize=20):
 
@@ -252,7 +253,7 @@ def plot_ease_img(data,tag,
     img[ind_lat,ind_lon] = data[tag]
     img_masked = np.ma.masked_invalid(img)
 
-    plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
+    # plt.figure(num=None, figsize=figsize, dpi=90, facecolor='w', edgecolor='k')
 
     m = Basemap(projection='mill',
                 llcrnrlat=llcrnrlat,
@@ -269,17 +270,17 @@ def plot_ease_img(data,tag,
 
     im.set_clim(vmin=cbrange[0], vmax=cbrange[1])
 
-    cb = m.colorbar(im, "bottom", size="7%", pad="8%")
-
-    for t in cb.ax.get_xticklabels():
-        t.set_fontsize(fontsize)
-    for t in cb.ax.get_yticklabels():
-        t.set_fontsize(fontsize)
+    if plot_cb is True:
+        cb = m.colorbar(im, "bottom", size="7%", pad=0.05)
+        for t in cb.ax.get_xticklabels():
+            t.set_fontsize(fontsize)
+        for t in cb.ax.get_yticklabels():
+            t.set_fontsize(fontsize)
 
     plt.title(title,fontsize=fontsize)
 
-    plt.tight_layout()
-    plt.show()
+    # plt.tight_layout()
+    # plt.show()
 
 
 def plot_grid_coord_indices():

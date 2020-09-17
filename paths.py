@@ -39,20 +39,19 @@ class paths(object):
     def __init__(self, root=None, exp=None, domain=None):
 
         if root is None:
-            root = 'D:' if platform.system() == 'Windows' else '/'
             uid = getpass.getuser()
             if uid[:3] == 'vsc':
                 # default path on the HPC
                 self.root = Path(root) / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'LDAS'
             else:
                 # default path on local machines
-                self.root = Path(root) / 'data_sets' / 'LDAS_runs'
+                self.root = Path('~').expanduser() / 'data_sets' / 'LDASsa_runs'
         else:
             self.root = Path(root)
 
         # default experiment name
         if exp is None:
-            exp = 'US_M36_SMOS_noDA_unscaled'
+            exp = 'US_M36_SMOS40_TB_MadKF_OL_it532'
 
         # default domain name
         if domain is None:
