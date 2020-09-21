@@ -42,7 +42,7 @@ class paths(object):
             uid = getpass.getuser()
             if uid[:3] == 'vsc':
                 # default path on the HPC
-                self.root = Path(root) / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'LDAS'
+                self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'LDAS'
             else:
                 # default path on local machines
                 self.root = Path('~').expanduser() / 'data_sets' / 'LDASsa_runs'

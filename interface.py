@@ -372,6 +372,8 @@ class LDAS_io(object):
             The path to a scaling file that should be read
         tile_id : int
             If provided, the scaling files for all pentads will be read for the specified tile_id
+        sensor : str
+            To distinguish SMAP and SMOS templates
 
         Returns
         -------
