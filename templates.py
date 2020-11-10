@@ -40,6 +40,9 @@ def get_template(param, **kwargs):
     elif (param == 'xhourly')|(param=='ensstd'):
         dtype, hdr, length = template_xhourly()
 
+    elif param == 'xhourly_inst':
+        dtype, hdr, length = template_xhourly_inst()
+
     elif param == 'hscale':
         dtype, hdr, length = template_scaling(**kwargs)
 
@@ -339,6 +342,25 @@ def template_xhourly():
                       ('precipitation_total_surface_flux', '>f4')])
 
     return dtype, hdr, length
+
+def template_xhourly_inst():
+    """"
+    Template for reading instantaneous xhourly catchment output files
+    TODO Include the possibility to specify the Collection ID. Currently: 9
+
+    """
+
+    hdr = None
+    length = None
+    dtype = np.dtype([('sm_surface', '>f4'),
+                      ('sm_rootzone', '>f4'),
+                      ('surface_temp', '>f4'),
+                      ('soil_temp_layer1', '>f4'),
+                      ('temp_lowatmmodlay', '>f4'),
+                      ('leaf_area_index', '>f4')])
+
+    return dtype, hdr, length
+
 
 def template_smosL4SMaup():
     """"
