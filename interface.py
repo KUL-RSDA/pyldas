@@ -135,6 +135,9 @@ class LDAS_io(object):
 
         n_blocks = n_lines / n_fields
 
+
+
+
         # different output scenarios.
         res = []
         for bl in np.arange(n_blocks, dtype='int') * n_fields:
@@ -172,38 +175,79 @@ class LDAS_io(object):
                             'ycorr': float(lines[bl + 30]),
                             'adapt': int(lines[bl + 31])})
             elif n_fields == 32 and n_blocks == 4:
-                res.append({'descr': s(lines[bl + 0]),
-                            'species': int(lines[bl + 1]),
-                            'orbit': int(lines[bl + 2]),
-                            'pol': int(lines[bl + 3]),
-                            'N_ang': int(lines[bl + 4]),
-                            'ang': float(lines[bl + 5]),
-                            'freq': float(lines[bl + 6]),
-                            'FOV': float(lines[bl + 7]),
-                            'FOV_units': s(lines[bl + 8]),
-                            'assim': b(lines[bl + 9]),
-                            'scale': b(lines[bl + 10]),
-                            'getinnov': b(lines[bl + 11]),
-                            'RTM_ID': int(lines[bl + 12]),
-                            'bias_Npar': int(lines[bl + 13]),
-                            'bias_trel': int(lines[bl + 14]),
-                            'bias_tcut': int(lines[bl + 15]),
-                            'nodata': float(lines[bl + 16]),
-                            'varname': s(lines[bl + 17]),
-                            'units': s(lines[bl + 18]),
-                            'path': s(lines[bl + 19]),
-                            'name': s(lines[bl + 20]),
-                            'scalepath': s(lines[bl + 21]),
-                            'scalename': s(lines[bl + 22]),
-                            'errstd': float(lines[bl + 23]),
-                            'errstd_file': b(lines[bl + 24]),
-                            'path_errstd': s(lines[bl + 25]),
-                            'std_normal_max': float(lines[bl + 26]),
-                            'zeromean': b(lines[bl + 27]),
-                            'coarsen_pert': b(lines[bl + 28]),
-                            'xcorr': float(lines[bl + 29]),
-                            'ycorr': float(lines[bl + 30]),
-                            'adapt': int(lines[bl + 31])})
+                if 'GEOSldas' in str(self.paths.exp_root):
+                    res.append({'descr': s(lines[bl + 0]),
+                                'species': int(lines[bl + 1]),
+                                'orbit': int(lines[bl + 2]),
+                                'pol': int(lines[bl + 3]),
+                                'N_ang': int(lines[bl + 4]),
+                                'ang': float(lines[bl + 5]),
+                                'freq': float(lines[bl + 6]),
+                                'FOV': float(lines[bl + 7]),
+                                'FOV_units': s(lines[bl + 8]),
+                                'assim': b(lines[bl + 9]),
+                                'scale': b(lines[bl + 10]),
+                                'getinnov': b(lines[bl + 11]),
+                                'RTM_ID': int(lines[bl + 12]),
+                                'bias_Npar': int(lines[bl + 13]),
+                                'bias_trel': int(lines[bl + 14]),
+                                'bias_tcut': int(lines[bl + 15]),
+                                'nodata': float(lines[bl + 16]),
+                                'varname': s(lines[bl + 17]),
+                                'units': s(lines[bl + 18]),
+                                'path': s(lines[bl + 19]),
+                                'name': s(lines[bl + 20]),
+                                'scalepath': s(lines[bl + 21]),
+                                'scalename': s(lines[bl + 22]),
+                                'flistpath': s(lines[bl + 23]),
+                                'flistname': s(lines[bl + 24]),
+                                'errstd': float(lines[bl + 25]),
+                                # 'errstd': float(lines[bl + 23]),
+                                # 'errstd_file': b(lines[bl + 24]),
+                                # 'path_errstd': s(lines[bl + 25]),
+                                'std_normal_max': float(lines[bl + 26]),
+                                'zeromean': b(lines[bl + 27]),
+                                'coarsen_pert': b(lines[bl + 28]),
+                                'xcorr': float(lines[bl + 29]),
+                                'ycorr': float(lines[bl + 30]),
+                                'adapt': int(lines[bl + 31])})
+                else:
+                    res.append({'descr': s(lines[bl + 0]),
+                                'species': int(lines[bl + 1]),
+                                'orbit': int(lines[bl + 2]),
+                                'pol': int(lines[bl + 3]),
+                                'N_ang': int(lines[bl + 4]),
+                                'ang': float(lines[bl + 5]),
+                                'freq': float(lines[bl + 6]),
+                                'FOV': float(lines[bl + 7]),
+                                'FOV_units': s(lines[bl + 8]),
+                                'assim': b(lines[bl + 9]),
+                                'scale': b(lines[bl + 10]),
+                                'getinnov': b(lines[bl + 11]),
+                                'RTM_ID': int(lines[bl + 12]),
+                                'bias_Npar': int(lines[bl + 13]),
+                                'bias_trel': int(lines[bl + 14]),
+                                'bias_tcut': int(lines[bl + 15]),
+                                'nodata': float(lines[bl + 16]),
+                                'varname': s(lines[bl + 17]),
+                                'units': s(lines[bl + 18]),
+                                'path': s(lines[bl + 19]),
+                                'name': s(lines[bl + 20]),
+                                'scalepath': s(lines[bl + 21]),
+                                'scalename': s(lines[bl + 22]),
+                                # 'flistpath': s(lines[bl + 23]),
+                                # 'flistname': s(lines[bl + 24]),
+                                # 'errstd': float(lines[bl + 25]),
+                                'errstd': float(lines[bl + 23]),
+                                'errstd_file': b(lines[bl + 24]),
+                                'path_errstd': s(lines[bl + 25]),
+                                'std_normal_max': float(lines[bl + 26]),
+                                'zeromean': b(lines[bl + 27]),
+                                'coarsen_pert': b(lines[bl + 28]),
+                                'xcorr': float(lines[bl + 29]),
+                                'ycorr': float(lines[bl + 30]),
+                                'adapt': int(lines[bl + 31])})
+
             else:
                 res.append({'descr': s(lines[bl + 0]),
                             'species': int(lines[bl + 1]),
@@ -293,7 +337,10 @@ class LDAS_io(object):
 
         # read header
         if hdr is not None:
-            hdr = np.fromfile(fid, dtype='>i4', count=hdr).byteswap().newbyteorder()
+            if 'GEOSldas' in str(self.paths.root):
+                hdr = np.fromfile(fid, dtype='>i4', count=hdr).newbyteorder()
+            else:
+                hdr = np.fromfile(fid, dtype='>i4', count=hdr).byteswap().newbyteorder()
 
             if length is not None:
                 length = hdr[length]
@@ -316,18 +363,32 @@ class LDAS_io(object):
             for dt in dtype.names:
                 if loc is None:
                     fid.seek(4, 1)  # skip fortran tag
-                    data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
+                    if 'GEOSldas' in str(self.paths.root):
+                        data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).newbyteorder()
+                    else:
+                        data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
+
                     fid.seek(4, 1)  # skip fortran tag
                 else:
                     fid.seek(4 + 4*loc, 1)
-                    data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).byteswap().newbyteorder()
+                    if 'GEOSldas' in str(self.paths.root):
+                        data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).newbyteorder()
+                    else:
+                        data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).byteswap().newbyteorder()
+
                     fid.seek(4 + 4*length - 4*loc - 4, 1)
 
         else:
             for i in np.arange(length):
                 fid.seek(4, 1)  # skip fortran tag
                 for dt in dtype.names:
-                    data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
+                    if 'S' in str(dtype[dt]):
+                        data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
+                    else:
+                        if 'GEOSldas' in str(self.paths.root):
+                            data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0].byteswap()
+                        else:
+                            data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
                 fid.seek(4, 1)  # skip fortran tag
 
         fid.close()

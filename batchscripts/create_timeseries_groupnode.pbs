@@ -1,5 +1,5 @@
 #!/bin/bash
-#PBS -l nodes=r23i13n23:ppn=5
+#PBS -l nodes=r23i13n23:ppn=9
 #PBS -W group_list=lees_swm_ls_ext
 #PBS -l pmem=5gb
 #PBS -A lp_ees_swm_ls_001
@@ -13,7 +13,7 @@
 root=/scratch/leuven/$(echo "$USER" |cut -c 4-6)/$USER/output/LDAS
 
 # !!! Experiment name and domain for which you want to create NetCDF files !!!
-exp=US_M36_SMAP_TB_MadKF_OL_it13
+exp=US_M36_SMAP_TB_DA_scaled_4K_obserr
 
 domain=SMAP_EASEv2_M36_US
 
@@ -22,7 +22,7 @@ domain=SMAP_EASEv2_M36_US
 # --------------------------------------------------------
 
 cd $PBS_O_WORKDIR
-python create_netcdf_images.py $root $exp $domain xhourly ObsFcstAna ObsFcstAnaEns
+python create_netcdf_images.py $root $exp $domain xhourly ensstd ObsFcstAna
 
 # --------------------------------------------------------
 # Generate netCDF timeseries stacks with nco
@@ -32,8 +32,9 @@ cd $root/$exp/output/$domain/cat
 ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
 
 cd $root/$exp/output/$domain/ana
+ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ensstd_images.nc ensstd_timeseries.nc
 ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
-ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn ens_id,50 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAnaEns_images.nc ObsFcstAnaEns_timeseries.nc
+# ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn ens_id,50 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAnaEns_images.nc ObsFcstAnaEns_timeseries.nc
 
 cd $PBS_O_WORKDIR
 rm -f out.txt log.txt

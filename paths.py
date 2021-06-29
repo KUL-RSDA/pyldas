@@ -42,16 +42,16 @@ class paths(object):
             uid = getpass.getuser()
             if uid[:3] == 'vsc':
                 # default path on the HPC
-                self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'LDAS'
+                self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'GEOSldas'
             else:
                 # default path on local machines
-                self.root = Path('~').expanduser() / 'data_sets' / 'LDASsa_runs'
+                self.root = Path('~').expanduser() / 'data_sets' / 'GEOSldas_runs'
         else:
             self.root = Path(root)
 
         # default experiment name
         if exp is None:
-            exp = 'US_M36_SMOS40_TB_MadKF_OL_it532'
+            exp = 'US_M36_SMAP_TB_OL_scaled_4K_obserr'
 
         # default domain name
         if domain is None:

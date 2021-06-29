@@ -54,6 +54,8 @@ class EASE2(object):
 
         if gridtype == 'M36':
             map_scale = 36032.220840584
+        elif gridtype == 'M25':
+            map_scale = 25025.26 # fewer digits are defined by NSIDC to avoid projection issues at +-180 degree
         elif gridtype == 'M09':
             map_scale = 9008.055210146
         elif gridtype == 'M03':
@@ -89,14 +91,9 @@ class EASE2(object):
         y_arr_neg = np.arange(-y_pix_size / 2, y_min, -y_pix_size)
         y_arr = np.concatenate([y_arr_pos[::-1], y_arr_neg])
 
-        # Remove invalid pixels
-        if gridtype == 'M36':
-            # north/south-most M36 grid cells do not fit within valid region, i.e. extend beyond +- 90 degrees
-            y_arr = y_arr[1:-1]
-        else:
-            # Clip all valid M03/M09 grid cells that are above (below) the last valid M36 grid cell
-            i_valid = np.where(ease(np.zeros(y_arr.shape), y_arr + y_pix_size/2, inverse=True)[1] < latmax)[0][0]
-            y_arr = y_arr[i_valid:-i_valid]
+        # Clip all valid grid cells that are above (below) the last valid M36 grid cell
+        i_valid = np.where(ease(np.zeros(y_arr.shape), y_arr + y_pix_size/2, inverse=True)[1] < latmax)[0][0]
+        y_arr = y_arr[i_valid:-i_valid]
 
         # Convert all grid cell coordinates from map-space to lat/lon
         self.ease_lons = ease(x_arr, np.zeros(x_arr.shape), inverse=True)[0]
@@ -110,10 +107,14 @@ class EASE2(object):
 
         return self.tilecoord.loc[ind_col & ind_row,'tile_id'].values[0]
 
-    def colrow2tilenum(self, col, row):
+    def colrow2tilenum(self, col, row, local=True):
 
-        ind_col = self.tilecoord['i_indg']-self.tilegrids.loc['domain','i_offg'] == col
-        ind_row = self.tilecoord['j_indg']-self.tilegrids.loc['domain','j_offg'] == row
+        if local:
+            ind_col = self.tilecoord['i_indg']-self.tilegrids.loc['domain','i_offg'] == col
+            ind_row = self.tilecoord['j_indg']-self.tilegrids.loc['domain','j_offg'] == row
+        else:
+            ind_col = self.tilecoord['i_indg'] == col
+            ind_row = self.tilecoord['j_indg'] == row
 
         return self.tilecoord.loc[ind_col & ind_row].index.values[0]
 
