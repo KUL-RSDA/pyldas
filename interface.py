@@ -660,7 +660,7 @@ class LDAS_io(object):
 
         """
 
-        if '.nc4' in str(io.files[0]):
+        if '.nc4' in str(self.files[0]):
             logging.warning('bin2netcdf: Wrong method for creating NetCDF cubes. Use "mergenc4files" instead.')
             return
 

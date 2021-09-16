@@ -15,7 +15,7 @@ root=/scratch/leuven/$(echo "$USER" |cut -c 4-6)/$USER/GEOSldas
 # !!! Experiment name and domain for which you want to create NetCDF files !!!
 domain=SMAP_EASEv2_M36
 
-exps=(NLv4_M36_US_OL_Pcorr_SMAP NLv4_M36_US_OL_noPcorr_SMAP)
+exps=(NLv4_M36_US_OL_Pcorr_SMAP NLv4_M36_US_OL_noPcorr_SMAP NLv4_M36_US_OL_noPcorr_SMOS)
 
     for exp in ${exps[*]} ; do
 
@@ -24,18 +24,19 @@ exps=(NLv4_M36_US_OL_Pcorr_SMAP NLv4_M36_US_OL_noPcorr_SMAP)
     # --------------------------------------------------------
 
     cd "PBS_O_WORKDIR" || exit
-    python create_netcdf_images.py $root $exp $domain ObsFcstAna
+    python create_netcdf_images.py $root $exp $domain tavg3_1d_lnr_Nt
 
     # --------------------------------------------------------
     # Generate netCDF timeseries stacks with nco
     # --------------------------------------------------------
 
-    # cd $root/$exp/output/$domain/cat
-    # ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
+     cd "$root/$exp/output/$domain/cat" || exit
+#     ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 xhourly_images.nc xhourly_timeseries.nc
+     ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 tavg3_1d_lnr_Nt_images.nc tavg3_1d_lnr_Nt_timeseries.nc
 
     cd "$root/$exp/output/$domain/ana" || exit
-    # ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ensstd_images.nc ensstd_timeseries.nc
-    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
+#    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ensstd_images.nc ensstd_timeseries.nc
+#    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
 
     cd "$PBS_O_WORKDIR" || exit
     rm -f out.txt log.txt
