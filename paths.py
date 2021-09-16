@@ -10,6 +10,8 @@ class paths(object):
 
     Parameters
     ----------
+    mode : string
+        'LDASsa' or "GEOSldas'
     root : pathlib.Path
         root path to the experiment directory
     exp : string
@@ -36,16 +38,16 @@ class paths(object):
 
     """
 
-    def __init__(self, root=None, exp=None, domain=None):
+    def __init__(self, mode, root=None, exp=None, domain=None):
 
         if root is None:
             uid = getpass.getuser()
             if uid[:3] == 'vsc':
                 # default path on the HPC
-                self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / 'output' / 'GEOSldas'
+                self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / mode
             else:
                 # default path on local machines
-                self.root = Path('~').expanduser() / 'data_sets' / 'GEOSldas_runs'
+                self.root = Path('~').expanduser() / 'data_sets' / f'{mode}_runs'
         else:
             self.root = Path(root)
 

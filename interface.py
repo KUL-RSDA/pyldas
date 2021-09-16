@@ -62,12 +62,15 @@ class LDAS_io(object):
     """
 
     def __init__(self,
+                 mode,
                  param=None,
                  exp=None,
                  domain=None,
                  root=None):
 
-        self.paths = paths(exp=exp, domain=domain, root=root)
+        self.mode = mode
+
+        self.paths = paths(self.mode, exp=exp, domain=domain, root=root)
 
         try:
             self.obsparam = self.read_obsparam()
@@ -86,22 +89,26 @@ class LDAS_io(object):
             else:
                 path = self.paths.exp_root
 
-            nc_file = list(path.glob('**/*' + param + '_images.nc'))
+            nc_file = list(path.glob(f'**/*{param}_images.nc'))
             if len(nc_file) == 0:
                 logging.warning('NetCDF image cube not yet created. Use method "bin2netcdf".')
             else:
                 self.images = xr.open_dataset(nc_file[0])
 
-            nc_file = list(path.glob('**/*' + param + '_timeseries.nc'))
+            nc_file = list(path.glob(f'**/*{param}_timeseries.nc'))
             if len(nc_file) == 0:
                 logging.warning('NetCDF time series cube not yet created. Use the NetCDF kitchen sink.')
             else:
                 self.timeseries = xr.open_dataset(nc_file[0])
 
             if param == 'ObsFcstAna':
-                self.files = np.sort(list(path.glob('**/*' + param + '.*.bin')))
+                self.files = np.sort(list(path.glob(f'**/*{param}.*.bin')))
             else:
-                self.files = np.sort(list(path.glob('**/*' + param + '*.bin')))
+                if self.mode == 'GEOSldas':
+                    self.files = np.sort(list(path.glob(f'**/*{param}.*.nc4')))
+                else:
+                    self.files = np.sort(list(path.glob(f'**/*{param}*.bin')))
+
 
             if param == 'hscale':
                 self.pentads = np.array([f.name[-6:-4] for f in self.files]).astype('int')
@@ -116,7 +123,8 @@ class LDAS_io(object):
             # if self.param == 'xhourly':
                 # self.dates += pd.to_timedelta('2 hours')
 
-            self.dtype, self.hdr, self.length = get_template(self.param)
+            if '.bin' in str(self.files[0]):
+                self.dtype, self.hdr, self.length = get_template(self.param)
 
 
     def read_obsparam(self):
@@ -134,9 +142,6 @@ class LDAS_io(object):
             n_fields = 30
 
         n_blocks = n_lines / n_fields
-
-
-
 
         # different output scenarios.
         res = []
@@ -175,7 +180,7 @@ class LDAS_io(object):
                             'ycorr': float(lines[bl + 30]),
                             'adapt': int(lines[bl + 31])})
             elif n_fields == 32 and n_blocks == 4:
-                if 'GEOSldas' in str(self.paths.exp_root):
+                if self.mode == 'GEOSldas':
                     res.append({'descr': s(lines[bl + 0]),
                                 'species': int(lines[bl + 1]),
                                 'orbit': int(lines[bl + 2]),
@@ -202,9 +207,6 @@ class LDAS_io(object):
                                 'flistpath': s(lines[bl + 23]),
                                 'flistname': s(lines[bl + 24]),
                                 'errstd': float(lines[bl + 25]),
-                                # 'errstd': float(lines[bl + 23]),
-                                # 'errstd_file': b(lines[bl + 24]),
-                                # 'path_errstd': s(lines[bl + 25]),
                                 'std_normal_max': float(lines[bl + 26]),
                                 'zeromean': b(lines[bl + 27]),
                                 'coarsen_pert': b(lines[bl + 28]),
@@ -235,9 +237,6 @@ class LDAS_io(object):
                                 'name': s(lines[bl + 20]),
                                 'scalepath': s(lines[bl + 21]),
                                 'scalename': s(lines[bl + 22]),
-                                # 'flistpath': s(lines[bl + 23]),
-                                # 'flistname': s(lines[bl + 24]),
-                                # 'errstd': float(lines[bl + 25]),
                                 'errstd': float(lines[bl + 23]),
                                 'errstd_file': b(lines[bl + 24]),
                                 'path_errstd': s(lines[bl + 25]),
@@ -337,7 +336,7 @@ class LDAS_io(object):
 
         # read header
         if hdr is not None:
-            if 'GEOSldas' in str(self.paths.root):
+            if self.mode == 'GEOSldas':
                 hdr = np.fromfile(fid, dtype='>i4', count=hdr).newbyteorder()
             else:
                 hdr = np.fromfile(fid, dtype='>i4', count=hdr).byteswap().newbyteorder()
@@ -363,7 +362,7 @@ class LDAS_io(object):
             for dt in dtype.names:
                 if loc is None:
                     fid.seek(4, 1)  # skip fortran tag
-                    if 'GEOSldas' in str(self.paths.root):
+                    if self.mode == 'GEOSldas':
                         data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).newbyteorder()
                     else:
                         data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=length).byteswap().newbyteorder()
@@ -371,7 +370,7 @@ class LDAS_io(object):
                     fid.seek(4, 1)  # skip fortran tag
                 else:
                     fid.seek(4 + 4*loc, 1)
-                    if 'GEOSldas' in str(self.paths.root):
+                    if self.mode == 'GEOSldas':
                         data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).newbyteorder()
                     else:
                         data.loc[:, dt] = np.fromfile(fid, dtype=dtype[dt], count=1).byteswap().newbyteorder()
@@ -385,7 +384,7 @@ class LDAS_io(object):
                     if 'S' in str(dtype[dt]):
                         data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
                     else:
-                        if 'GEOSldas' in str(self.paths.root):
+                        if self.mode == 'GEOSldas':
                             data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0].byteswap()
                         else:
                             data.loc[i, dt] = np.fromfile(fid, dtype=dtype[dt], count=1)[0]
@@ -661,6 +660,10 @@ class LDAS_io(object):
 
         """
 
+        if '.nc4' in str(io.files[0]):
+            logging.warning('bin2netcdf: Wrong method for creating NetCDF cubes. Use "mergenc4files" instead.')
+            return
+
         if out_file is None:
             out_file = self.files[0].parents[3] / (self.param + '_images.nc')
 
@@ -867,6 +870,120 @@ class LDAS_io(object):
         dataset.close()
         self.images = xr.open_dataset(out_file)
 
+
+    def mergenc4files(self,
+                   overwrite=False,
+                   date_from=None,
+                   date_to=None,
+                   latmin=-90.,
+                   latmax=90.,
+                   lonmin=-180.,
+                   lonmax=180.,
+                   out_file=None):
+
+        """"
+        Convert fortran binary image into a netCDF data cube.
+
+        Parameters
+        ----------
+        overwrite : boolean
+            If set, an already existing netCDF file will be overwritten
+        date_from : string
+            Lower time limit for which a netCDF image cube should be generated (string format, e.g., '2010-01-01')
+        date_to : string
+            Upper time limit for which a netCDF image cube should be generated (string format, e.g., '2010-01-01')
+        latmin : float
+            Lower latitude limit for which a netCDF image cube should be generated
+        latmax : float
+            Upper latitude limit for which a netCDF image cube should be generated
+        lonmin : float
+            Lower longitude limit for which a netCDF image cube should be generated
+        lonmax : float
+            Upper longitude limit for which a netCDF image cube should be generated
+        out_file : string
+            Optional alternative path / filename for the created NetCDF image cube
+
+        """
+
+        if out_file is None:
+            out_file = self.files[0].parents[3] / (self.param + '_images.nc')
+
+        # remove file if it already exists
+        if hasattr(self,'images'):
+            if overwrite is False:
+                logging.warning('mergenc4files: NetCDF image file already exists. Use keyword "overwrite" to regenerate.')
+                return
+            else:
+                delattr(self, 'images')
+                out_file.unlink()
+
+        dates = self.dates
+        files = self.files
+        if date_from is not None:
+            files = files[dates >= pd.to_datetime(date_from)]
+            dates = dates[dates >= pd.to_datetime(date_from)]
+        if date_to is not None:
+            files = files[dates <= pd.to_datetime(date_to)]
+            dates = dates[dates <= pd.to_datetime(date_to)]
+
+        domainlons = self.grid.ease_lons[np.min(self.grid.tilecoord.i_indg):(np.max(self.grid.tilecoord.i_indg)+1)]
+        domainlats = self.grid.ease_lats[np.min(self.grid.tilecoord.j_indg):(np.max(self.grid.tilecoord.j_indg)+1)]
+
+        lonmin = domainlons[np.argmin(np.abs(domainlons-lonmin))]
+        lonmax = domainlons[np.argmin(np.abs(domainlons-lonmax))]
+        latmin = domainlats[np.argmin(np.abs(domainlats-latmin))]
+        latmax = domainlats[np.argmin(np.abs(domainlats-latmax))]
+
+        # Use grid lon lat to avoid rounding issues
+        tmp_tilecoord = self.grid.tilecoord.copy()
+        tmp_tilecoord['com_lon'] = self.grid.ease_lons[self.grid.tilecoord.i_indg]
+        tmp_tilecoord['com_lat'] = self.grid.ease_lats[self.grid.tilecoord.j_indg]
+
+        # Clip region based on specified coordinate boundaries
+        ind_img = self.grid.tilecoord[(tmp_tilecoord['com_lon']>=lonmin)&(tmp_tilecoord['com_lon']<=lonmax)&
+                                 (tmp_tilecoord['com_lat']<=latmax)&(tmp_tilecoord['com_lat']>=latmin)].index
+        lons = domainlons[(domainlons >= lonmin) & (domainlons <= lonmax)]
+        lats = domainlats[(domainlats >= latmin) & (domainlats <= latmax)]
+        i_offg_2 = np.where(domainlons >= lonmin)[0][0]
+        j_offg_2 = np.where(domainlats <= latmax)[0][0]
+
+        dimensions = OrderedDict([('time', dates), ('lat', lats), ('lon', lons)])
+        with Dataset(self.files[0]) as ds:
+            variables = set(ds.variables.keys()).difference(['JG','IG','lon','lat'])
+            dataset = self.ncfile_init(out_file, dimensions, variables)
+            for var in variables:
+                for attr in ds[var].ncattrs():
+                    if attr[0] != '_':
+                        dataset[var].setncattr(attr, ds[var].getncattr(attr))
+
+        for i, (f, dt) in enumerate(zip(files,dates)):
+            logging.info('%d / %d' % (i, len(dates)))
+
+            with Dataset(f) as data:
+                img = np.full((len(lats),len(lons)), -9999., dtype='float32')
+                ind_lat = self.grid.tilecoord.loc[ind_img, 'j_indg'].values - self.grid.tilegrids.loc['domain','j_offg'] - j_offg_2
+                ind_lon = self.grid.tilecoord.loc[ind_img, 'i_indg'].values - self.grid.tilegrids.loc['domain','i_offg'] - i_offg_2
+
+                for var in variables:
+                    tmp_img = data[var][0,ind_img-1].data
+                    img[ind_lat,ind_lon] = tmp_img
+                    dataset.variables[var][i,:,:] = img
+
+        # Save file to disk and loat it as xarray Dataset into the class variable space
+        dataset.close()
+        self.images = xr.open_dataset(out_file)
+
+class LDASsa_io(LDAS_io):
+    ''' Class for LDASsa output'''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('LDASsa', *args, **kwargs)
+
+class GEOSldas_io(LDAS_io):
+    ''' Class for GEOSldas output'''
+
+    def __init__(self, *args, **kwargs):
+        super().__init__('GEOSldas', *args, **kwargs)
 
 if __name__=='__main__':
 
