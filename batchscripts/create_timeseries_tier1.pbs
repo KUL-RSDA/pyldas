@@ -1,0 +1,44 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=28
+#PBS -l pmem=5gb
+#PBS -A lt1_col_2021_1
+#PBS -l walltime=24:00:00
+#PBS -m abe
+#PBS -M alexander.gruber@kuleuven.be
+#PBS -o ./log2.txt
+#PBS -e ./out2.txt
+
+# Default path
+root=/scratch/leuven/projects/lt1_2020_es_pilot/project_output/rsda/$USER/GEOSldas
+
+# !!! Experiment name and domain for which you want to create NetCDF files !!!
+domain=SMAP_EASEv2_M36
+
+exps=(NLv4_M36_US_DA_noPcorr_scl_SMAP_abs NLv4_M36_US_DA_noPcorr_scl_SMAP_anom_lt NLv4_M36_US_DA_noPcorr_scl_SMAP_anom_st NLv4_M36_US_DA_noPcorr_scl_SMAP_anom_lst)
+
+    for exp in ${exps[*]} ; do
+
+    # --------------------------------------------------------
+    # Generate netCDF image stacks with python
+    # --------------------------------------------------------
+
+    # cd "$PBS_O_WORKDIR" || exit
+    cd "/data/leuven/320/vsc32046/python/pyldas/batchscripts" || exit
+    python create_netcdf_images.py $root $exp $domain ObsFcstAna SMAP_L4_SM_gph
+
+    # --------------------------------------------------------
+    # Generate netCDF timeseries stacks with nco
+    # --------------------------------------------------------
+
+    cd "$root/$exp/output/$domain/cat" || exit
+    # ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 tavg3_1d_lnr_Nt_images.nc tavg3_1d_lnr_Nt_timeseries.nc
+    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 SMAP_L4_SM_gph_images.nc SMAP_L4_SM_gph_timeseries.nc
+
+
+    cd "$root/$exp/output/$domain/ana" || exit
+    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
+
+    cd "$PBS_O_WORKDIR" || exit
+    # rm -f out.txt log.txt
+
+done
