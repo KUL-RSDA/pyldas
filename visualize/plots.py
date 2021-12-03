@@ -2,15 +2,13 @@
 import numpy as np
 import pandas as pd
 
-import platform
-if platform.system() in ['Linux']:
-    import matplotlib
-    matplotlib.use("TkAgg")
+import seaborn as sns
+sns.set_context('talk', font_scale=0.8)
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 
-from pyldas.interface import LDAS_io
+from pyldas.interface import GEOSldas_io
 from pyldas.paths import paths
 
 
@@ -22,8 +20,8 @@ def plot_catparams():
 
     exp = 'US_M36_SMOS40_DA_cal_scaled'
 
-    tc = LDAS_io().grid.tilecoord
-    tg = LDAS_io().grid.tilegrids
+    tc = GEOSldas_io().grid.tilecoord
+    tg = GEOSldas_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -42,7 +40,7 @@ def plot_catparams():
     cmap = 'jet'
     fontsize = 20
 
-    params = LDAS_io(exp=exp).read_params('catparam')
+    params = GEOSldas_io(exp=exp).read_params('catparam')
 
     for param in params:
 
@@ -86,8 +84,8 @@ def plot_rtm_parameters():
 
     experiments = ['US_M36_SMOS_DA_calibrated_scaled', 'US_M36_SMOS_DA_nocal_scaled_harmonic']
 
-    tc = LDAS_io().grid.tilecoord
-    tg = LDAS_io().grid.tilegrids
+    tc = GEOSldas_io().grid.tilecoord
+    tg = GEOSldas_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -112,7 +110,7 @@ def plot_rtm_parameters():
         if not outpath.exists:
             outpath.mkdir(exists=True)
 
-        params = LDAS_io(exp=exp).read_params('RTMparam')
+        params = GEOSldas_io(exp=exp).read_params('RTMparam')
 
         for param in params:
 
@@ -158,8 +156,8 @@ def plot_rtm_parameter_differences():
     if not outpath.exists:
         outpath.mkdir(exists=True)
 
-    tc = LDAS_io().grid.tilecoord
-    tg = LDAS_io().grid.tilegrids
+    tc = GEOSldas_io().grid.tilecoord
+    tg = GEOSldas_io().grid.tilegrids
 
     tc.i_indg -= tg.loc['domain','i_offg'] # col / lon
     tc.j_indg -= tg.loc['domain','j_offg'] # row / lat
@@ -178,8 +176,8 @@ def plot_rtm_parameter_differences():
     cmap = 'RdYlBu'
     fontsize = 20
 
-    params_cal = LDAS_io(exp='US_M36_SMOS_DA_calibrated_scaled').read_params('RTMparam')
-    params_uncal = LDAS_io(exp='US_M36_SMOS_DA_nocal_scaled_harmonic').read_params('RTMparam')
+    params_cal = GEOSldas_io(exp='US_M36_SMOS_DA_calibrated_scaled').read_params('RTMparam')
+    params_uncal = GEOSldas_io(exp='US_M36_SMOS_DA_nocal_scaled_harmonic').read_params('RTMparam')
 
     for param in params_cal:
 
@@ -238,7 +236,7 @@ def plot_ease_img(data,tag,
                   title='',
                   fontsize=20):
 
-    io = LDAS_io()
+    io = GEOSldas_io()
 
     tc = io.grid.tilecoord
 
@@ -285,7 +283,7 @@ def plot_ease_img(data,tag,
 
 def plot_grid_coord_indices():
 
-    io = LDAS_io('ObsFcstAna', exp='US_M36_SMOS40_noDA_cal_scaled')
+    io = GEOSldas_io('ObsFcstAna', exp='US_M36_SMOS40_noDA_cal_scaled')
 
     lats = io.images.lat.values
     lons = io.images.lon.values
@@ -324,7 +322,7 @@ def plot_grid_coord_indices():
 
 def plot_ObsFcstAna_image(species=8):
 
-    io = LDAS_io('ObsFcstAna')
+    io = GEOSldas_io('ObsFcstAna')
     img = io.read_image(2011, 7, 10, 0, 0)
 
     img = img[img['obs_species']==species]
@@ -337,7 +335,7 @@ def plot_ObsFcstAna_image(species=8):
 
 def plot_model_image():
 
-    io = LDAS_io('xhourly')
+    io = GEOSldas_io('xhourly')
     img = io.read_image(2011, 4, 20, 10, 30)
 
     # tag = 'precipitation_total_surface_flux'
@@ -350,33 +348,38 @@ def plot_model_image():
 
 def plot_innov(spc=8, row=35, col=65):
 
-    ts_scl = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_scaled').timeseries
-    ts_usc = LDAS_io('ObsFcstAna',exp='US_M36_SMOS_noDA_unscaled').timeseries
+    ts_scl = GEOSldas_io('ObsFcstAna',exp='NLv4_M36_US_OL_Pcorr_scl_SMAP').timeseries
+    ts_usc = GEOSldas_io('ObsFcstAna',exp='NLv4_M36_US_OL_Pcorr_SMAP').timeseries
 
     plt.figure(figsize=(18,11))
 
     ax1 = plt.subplot(311)
     df = pd.DataFrame(index=ts_scl.time)
-    df['obs'] = ts_scl['obs_obs'][spc,row,col].values
-    df['fcst'] = ts_scl['obs_fcst'][spc,row,col].values
+    df['obs'] = ts_scl['obs_obs'].isel(species=spc-1, lat=row, lon=col).values
+    df['fcst'] = ts_scl['obs_fcst'].isel(species=spc-1, lat=row, lon=col).values
     df.dropna().plot(ax=ax1)
 
     ax2 = plt.subplot(312)
     df = pd.DataFrame(index=ts_usc.time)
-    df['obs'] = ts_usc['obs_obs'][spc,row,col].values
-    df['fcst'] = ts_usc['obs_fcst'][spc,row,col].values
+    df['obs'] = ts_usc['obs_obs'].isel(species=spc-1, lat=row, lon=col).values
+    df['fcst'] = ts_usc['obs_fcst'].isel(species=spc-1, lat=row, lon=col).values
     df.dropna().plot(ax=ax2)
 
     ax3 = plt.subplot(313)
     df = pd.DataFrame(index=ts_usc.time)
-    df['obs_diff'] = ts_scl['obs_obs'][spc,row,col].values - ts_usc['obs_obs'][spc,row,col].values
-    df['fcst_diff'] = ts_scl['obs_fcst'][spc,row,col].values - ts_usc['obs_fcst'][spc,row,col].values
+    # df['innov'] = ts_scl['obs_obs'].isel(lat=row, lon=col).mean(dim='species').values - ts_scl['obs_fcst'].isel(lat=row, lon=col).mean(dim='species').values
+    df['innov'] = ts_scl['obs_obs'].isel(species=spc-1, lat=row, lon=col).values - ts_scl['obs_fcst'].isel(species=spc-1, lat=row, lon=col).values
+    # df['innov_unscl'] = ts_scl['obs_obs'].isel(species=spc-1, lat=row, lon=col).values - ts_usc['obs_fcst'].isel(species=spc-1, lat=row, lon=col).values
     df.dropna().plot(ax=ax3)
+    plt.axhline(color='black', linestyle='--')
 
-    print(len(ts_scl['obs_obs'][spc,row,col].dropna('time')))
-    print(len(ts_scl['obs_fcst'][spc,row,col].dropna('time')))
-    print(len(ts_usc['obs_obs'][spc,row,col].dropna('time')))
-    print(len(ts_usc['obs_fcst'][spc,row,col].dropna('time')))
+    print(df.mean())
+
+
+    # print(len(ts_scl['obs_obs'][spc,row,col].dropna('time')))
+    # print(len(ts_scl['obs_fcst'][spc,row,col].dropna('time')))
+    # print(len(ts_usc['obs_obs'][spc,row,col].dropna('time')))
+    # print(len(ts_usc['obs_fcst'][spc,row,col].dropna('time')))
 
     plt.tight_layout()
     plt.show()
@@ -415,7 +418,7 @@ def plot_xarr_img(img,lons,lats,
 
 def plot_obs_uncertainties():
 
-    io = LDAS_io('ObsFcstAna',exp='US_M36_SMOS40_DA_cal_scl_errfile')
+    io = GEOSldas_io('ObsFcstAna',exp='US_M36_SMOS40_DA_cal_scl_errfile')
 
     lons = io.images['lon'].values
     lats = io.images['lat'].values
@@ -448,7 +451,7 @@ def plot_obs_uncertainties():
 
 def plot_fcst_uncertainties():
 
-    io = LDAS_io('ObsFcstAna',exp='US_M36_SMOS40_noDA_cal_scaled')
+    io = GEOSldas_io('ObsFcstAna',exp='US_M36_SMOS40_noDA_cal_scaled')
 
     lons = io.images['lon'].values
     lats = io.images['lat'].values
@@ -482,7 +485,14 @@ def plot_fcst_uncertainties():
 
 
 if __name__=='__main__':
-    plot_catparams()
+
+    lat, lon = 41.83347716648588, -98.47471538470059
+    grid = GEOSldas_io().grid
+    col, row = grid.lonlat2colrow(lon, lat)
+
+    plot_innov(spc=1, row=row, col=col)
+
+    # plot_catparams()
 
 
 # llcrnrlat = -58.,

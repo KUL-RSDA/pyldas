@@ -56,7 +56,7 @@ class paths(object):
         # default experiment name
         if exp is None:
             if mode == 'GEOSldas':
-                exp = 'NLv4_M36_US_OL_Pcorr_SMAP'
+                exp = 'NLv4_M36_US_OL_Pcorr'
             else:
                 exp = 'US_M36_SMAP_TB_OL_scaled_4K_obserr'
 

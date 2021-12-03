@@ -140,7 +140,7 @@ class LDAS_io(object):
         # 34 fields for GEOSldas including the use of uncertainty maps
         if n_lines == 128 or n_lines == 896:
             n_fields = 32
-        elif n_lines == 136:
+        elif n_lines == 136 or n_lines == 272:
             n_fields = 34
         else:
             n_fields = 30
@@ -250,7 +250,7 @@ class LDAS_io(object):
                                 'xcorr': float(lines[bl + 29]),
                                 'ycorr': float(lines[bl + 30]),
                                 'adapt': int(lines[bl + 31])})
-            elif n_fields == 34 and n_blocks == 4:
+            elif n_fields == 34 and (n_blocks == 4 or n_blocks == 8):
                 res.append({'descr': s(lines[bl + 0]),
                             'species': int(lines[bl + 1]),
                             'orbit': int(lines[bl + 2]),
