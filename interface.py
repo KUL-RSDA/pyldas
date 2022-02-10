@@ -114,7 +114,10 @@ class LDAS_io(object):
                 self.pentads = np.array([f.name[-6:-4] for f in self.files]).astype('int')
                 self.orbits = np.array([f.name[-9:-8] for f in self.files])
             else:
-                self.dates = pd.to_datetime([f.name[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
+                if 'monthly' in param:
+                    self.dates = pd.to_datetime([f.name[-10:-4] for f in self.files], format='%Y%m')
+                else:
+                    self.dates = pd.to_datetime([f.name[-18:-5] for f in self.files], format='%Y%m%d_%H%M')
 
             if param == 'ObsFcstAnaEns':
                 self.ens_id = np.array([f.name[-42:-38] for f in self.files]).astype('int')
@@ -544,7 +547,10 @@ class LDAS_io(object):
         # Otherwise, read from fortran binary
         else:
             if fname is None:
-                datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
+                if 'monthly' in self.param:
+                    datestr = '%04i%02i' % (yr, mo)
+                else:
+                    datestr = '%04i%02i%02i_%02i%02i' % (yr, mo, da, hr, mi)
                 fname = [f for f in self.files if f.name.find(datestr) != -1]
 
                 if len(fname) == 0:

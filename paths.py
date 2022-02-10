@@ -45,8 +45,6 @@ class paths(object):
             if uid[:3] == 'vsc':
                 # default path on the HPC (Tier-1 and Tier-2)
                 self.root = Path('/') / 'scratch' / 'leuven' / uid[3:6] / uid / mode
-                if not self.root.exists():
-                    self.root = Path('/') / 'scratch' / 'leuven' / 'projects' / 'lt1_2020_es_pilot' / 'project_output' / 'rsda' / uid / mode
             else:
                 # default path on local machines
                 self.root = Path('~').expanduser() / 'data_sets' / f'{mode}_runs'

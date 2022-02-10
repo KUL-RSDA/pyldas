@@ -40,6 +40,9 @@ def get_template(param, **kwargs):
     elif (param == 'xhourly')|(param=='ensstd'):
         dtype, hdr, length = template_xhourly()
 
+    elif param == 'ldas_tile_monthly_out':
+        dtype, hdr, length = template_ldas_tile_monthly_out()
+
     elif param == 'xhourly_inst':
         dtype, hdr, length = template_xhourly_inst()
 
@@ -361,6 +364,97 @@ def template_xhourly_inst():
 
     return dtype, hdr, length
 
+def template_ldas_tile_monthly_out():
+    """"
+    Template for reading Catchment-CN output files (= Collection 1 + Catchment-CN fields)
+
+    """
+
+    hdr = None
+    length = None
+    dtype = np.dtype([('Tair', '>f4'), # Collection 1...
+                      ('Qair', '>f4'),
+                      ('Psurf', '>f4'),
+                      ('RainfC', '>f4'),
+                      ('Rainf', '>f4'),
+                      ('Snowf', '>f4'),
+                      ('LWdown', '>f4'),
+                      ('SWdown', '>f4'),
+                      ('Wind', '>f4'),
+                      ('capac', '>f4'),
+                      ('srfexc', '>f4'),
+                      ('rzexc', '>f4'),
+                      ('catdef', '>f4'),
+                      ('sumwesn', '>f4'),
+                      ('sumsndz', '>f4'),
+                      ('ar1', '>f4'),
+                      ('ar2', '>f4'),
+                      ('asnow', '>f4'),
+                      ('sfmc', '>f4'),
+                      ('rzmc', '>f4'),
+                      ('prmc', '>f4'),
+                      ('tsurf', '>f4'),
+                      ('tp1', '>f4'),
+                      ('tpN', '>f4'),
+                      ('tpsn1', '>f4'),
+                      ('tpsnN', '>f4'),
+                      ('shflux', '>f4'),
+                      ('lhflux', '>f4'),
+                      ('ghflux', '>f4'),
+                      ('evap', '>f4'),
+                      ('eint', '>f4'),
+                      ('eveg', '>f4'),
+                      ('esoi', '>f4'),
+                      ('esno', '>f4'),
+                      ('runoff', '>f4'),
+                      ('runsrf', '>f4'),
+                      ('bflow', '>f4'),
+                      ('snmelt', '>f4'),
+                      ('lwup', '>f4'),
+                      ('swup', '>f4'),
+                      ('qinfil', '>f4'),
+                      ('totalb', '>f4'),
+                      ('waterbal', '>f4'),
+                      ('energybal', '>f4'),
+
+                      ('tg1', '>f4'), # Catchment-CN specific:
+                      ('tg2', '>f4'),
+                      ('tg4', '>f4'),
+                      ('tc1', '>f4'),
+                      ('tc2', '>f4'),
+                      ('tc4', '>f4'),
+                      ('lai', '>f4'),
+                      ('lai11', '>f4'),
+                      ('lai12', '>f4'),
+                      ('lai13', '>f4'),
+                      ('lai21', '>f4'),
+                      ('lai22', '>f4'),
+                      ('lai23', '>f4'),
+                      ('colc1', '>f4'),
+                      ('colc2', '>f4'),
+                      ('colc3', '>f4'),
+                      ('npp', '>f4'),
+                      ('gpp', '>f4'),
+                      ('sr', '>f4'),
+                      ('nee', '>f4'),
+                      ('root', '>f4'),
+                      ('padd', '>f4'),
+                      ('vegc', '>f4'),
+                      ('apar', '>f4'),
+                      ('sai', '>f4'),
+                      ('totcolc', '>f4'),
+                      ('btran', '>f4'),
+                      ('ipar', '>f4'),
+                      ('sif', '>f4'),
+                      ('sifl', '>f4'),
+                      ('psn', '>f4'),
+                      ('t2m', '>f4'),
+                      ('q2m', '>f4'),
+                      ('closs', '>f4'),
+                      ('burn', '>f4'),
+                      ('fsel', '>f4')])
+
+    return dtype, hdr, length
 
 def template_smosL4SMaup():
     """"
