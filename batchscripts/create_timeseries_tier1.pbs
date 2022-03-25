@@ -9,14 +9,14 @@
 #PBS -e ./out.txt
 
 # Default path
-#root=/scratch/leuven/projects/lt1_2020_es_pilot/project_output/rsda/$USER/GEOSldas
-root=/scratch/leuven/320/vsc32046/output/GEOSldas
+# root=/scratch/leuven/320/vsc32046/GEOSldas
+root=/scratch/leuven/320/vsc32046/LDASsa
 
 # !!! Experiment name and domain for which you want to create NetCDF files !!!
-domain=SMAP_EASEv2_M36
+domain=SMAP_EASEv2_M09
 
 # exps=(NLv4_M36_US_OL_SMAP_ScDY NLv4_M36_US_DA_SMAP_Pcorr_4K_ScDY NLv4_M36_US_DA_SMAP_Pcorr_anom_lst_ScDY NLv4_M36_US_DA_SMAP_Pcorr_abs_ScDY )
-exps=(NLv4_M36_US_DA_SMAP_Pcorr_anom_lt_ScDY)
+exps=(e0004s_transientCO2)
 
     for exp in ${exps[*]} ; do
 
@@ -25,19 +25,20 @@ exps=(NLv4_M36_US_DA_SMAP_Pcorr_anom_lt_ScDY)
     # --------------------------------------------------------
 
     cd "/data/leuven/320/vsc32046/python/pyldas/batchscripts" || exit
-   python create_netcdf_images.py $root $exp $domain ObsFcstAna tavg3_1d_lnr_Nt
+    python create_netcdf_images_LDASsa.py $root $exp $domain ldas_tile_monthly_out
 
     # --------------------------------------------------------
     # Generate netCDF timeseries stacks with nco
     # --------------------------------------------------------
 
     cd "$root/$exp/output/$domain/cat" || exit
-    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 tavg3_1d_lnr_Nt_images.nc tavg3_1d_lnr_Nt_timeseries.nc
+    # ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 tavg3_1d_lnr_Nt_images.nc tavg3_1d_lnr_Nt_timeseries.nc
     # ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 SMAP_L4_SM_gph_images.nc SMAP_L4_SM_gph_timeseries.nc
+    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn lat,1 --cnk_dmn lon,1 ldas_tile_monthly_out_images.nc ldas_tile_monthly_out_timeseries.nc
 
 
     cd "$root/$exp/output/$domain/ana" || exit
-    ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
+    #ncks -4 -L 4 --cnk_dmn time,30000 --cnk_dmn species,1 --cnk_dmn lat,1 --cnk_dmn lon,1 ObsFcstAna_images.nc ObsFcstAna_timeseries.nc
 
     # cd "$PBS_O_WORKDIR" || exit
     # rm -f out.txt log.txt
